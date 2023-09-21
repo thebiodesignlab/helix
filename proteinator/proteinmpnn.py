@@ -3,7 +3,7 @@ import os
 import sys
 import uuid
 from modal import Image
-from main import RESULTS_DIR, stub, volume, CACHE_DIR
+from proteinator.main import RESULTS_DIR, stub, volume, CACHE_DIR
 
 image = Image.from_registry(
     "pytorch/pytorch:1.13.1-cuda11.6-cudnn8-devel"
@@ -45,7 +45,7 @@ def set_paths():
 
 
 @stub.function(image=image, network_file_systems={CACHE_DIR: volume})
-def run(job_id, args):
+def predict(job_id, args):
     set_paths()
 
     import json, time, os, sys
@@ -458,7 +458,6 @@ def run(job_id, args):
 def entrypoint(
     suppress_print: int = 0,
     ca_only: bool = False,
-    path_to_model_weights: str = "",
     model_name: str = "v_48_020",
     use_soluble_model: bool = False,
     seed: int = 0,
@@ -499,7 +498,6 @@ def entrypoint(
     args = Namespace(
         suppress_print=suppress_print,
         ca_only=ca_only,
-        path_to_model_weights=path_to_model_weights,
         model_name=model_name,
         use_soluble_model=use_soluble_model,
         seed=seed,
@@ -532,9 +530,12 @@ def entrypoint(
         pssm_bias_flag=pssm_bias_flag,
         tied_positions_jsonl=tied_positions_jsonl,
         omit_AAs=['X'],
+
         
     )
     job_id = uuid.uuid4()
-    run.call(job_id, args)
-    print (f"Job ID: {job_id}")
+    print(f"Job started. Retrieve results using job id {job_id}")
+    predict.remote(job_id, args)
+    print(f"Job finished. Retrieve results using job id {job_id}")
+    
 

@@ -1,7 +1,7 @@
 import uuid
 from modal import Image, method
 import os
-from main import CACHE_DIR, RESULTS_DIR, volume, stub
+from proteinator.main import CACHE_DIR, RESULTS_DIR, volume, stub
 
 
 def download_model():
@@ -55,7 +55,7 @@ def predict_structures(fasta_file: str):
     from Bio import SeqIO
     job_id = uuid.uuid4()
 
-    print("Structure predction job started...")
+    print("Structure prediction job started...")
     print(f"Retrieve results using job id {job_id}")
     model = ESMFold()
     for result in model.predict.starmap(((job_id,str(record.seq),record.id) for record in SeqIO.parse(fasta_file, "fasta")), return_exceptions=True):
