@@ -267,7 +267,7 @@ def assign_fixed_chains(input_path, output_path, chain_list=''):
         f.write(json.dumps(my_dict) + '\n')
 
 
-@stub.function(image=image, network_file_systems={CACHE_DIR: volume})
+@stub.function(image=image, gpu='A10G', network_file_systems={CACHE_DIR: volume})
 def predict(job_id, args):
     set_paths()
 
