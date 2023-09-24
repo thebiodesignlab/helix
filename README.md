@@ -9,6 +9,14 @@ logo
 ---
 Running large models and code that scales for big datasets in this repository is enabled by [Modal](https://modal.com) (no affiliation). It allows us to run code in the cloud on thousands of containers and GPUs without having to think for a second about infrastructure.
 
+#### Currently implemented
+- [ESMFold](https://github.com/facebookresearch/esm#esmfold)
+- [ProteinMPNN](https://github.com/dauparas/ProteinMPNN)
+#### Up Next
+- RFDiffusion
+- EvoProtGrad
+- Evodiff
+
 ## ⚙️ Getting started
 
 1. Create an account at [modal.com](https://modal.com).
