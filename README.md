@@ -7,12 +7,12 @@ logo
 </div>
 
 ---
-Running large models and code that scales for big datasets in this repository is enabeled [Modal](https://modal.com) (no affiliation). It allows us to run code in the cloud on thousands of containers and GPUs without having to think for a second about infrastructure.
----
+Running large models and code that scales for big datasets in this repository is enabled by [Modal](https://modal.com) (no affiliation). It allows us to run code in the cloud on thousands of containers and GPUs without having to think for a second about infrastructure.
+
 ## ⚙️ Getting started
 
 1. Create an account at [modal.com](https://modal.com).
-3. Open a terminal and run (Requires Python 3.10+): ```bash pip install modal helix```
+3. Open a terminal and run (requires Python 3.10+): ```bash pip install helix```
 4. Run ```bash modal token new```
 
 ## 🧬 Run your first model
