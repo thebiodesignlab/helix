@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "proteinator"
+name = "helix"
 version = "0.1.0"
 description = ""
 authors = ["Ragnor Comerford <hello@ragnor.co>"]
@@ -9,8 +9,22 @@ readme = "README.md"
 python = "^3.10"
 biopython = "^1.81"
 modal = "^0.52.3518"
+dnachisel = "^3.2.11"
 
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.291"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+ignore = [
+  "E712",  # Allow using if x == False, as it's not always equivalent to if x.
+  "E501",  # Supress line-too-long warnings: trust black's judgement on this one.
+  "E741", # Annoying lint rule preventing short variable names
+  "E731", # Don't assign a lambda expression.
+  ]

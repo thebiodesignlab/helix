@@ -3,7 +3,7 @@ import os
 import sys
 import uuid
 from modal import Image
-from proteinator.main import RESULTS_DIR, stub, volume, CACHE_DIR
+from helix.main import RESULTS_DIR, stub, volume, CACHE_DIR
 
 FILE_KEYS = [
     "pdb_path",

@@ -1,30 +1,28 @@
 import uuid
 from modal import Image, method
 import os
-from proteinator.main import CACHE_DIR, RESULTS_DIR, volume, stub
+from helix.main import CACHE_DIR, RESULTS_DIR, volume, stub
 
 
 def download_model():
     import esm
     esm.pretrained.esm2_t36_3B_UR50D()
     esm.pretrained.esmfold_v1()
- 
+
 
 dockerhub_image = Image.from_registry(
     "pytorch/pytorch:1.12.1-cuda11.3-cudnn8-devel"
 ).apt_install("git"
-).pip_install("fair-esm[esmfold]", 
-              "dllogger @ git+https://github.com/NVIDIA/dllogger.git", 
-              "openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307"
-).run_function(download_model
-).pip_install("gradio",
-              "biopython",
-              "pandas")
+              ).pip_install("fair-esm[esmfold]",
+                            "dllogger @ git+https://github.com/NVIDIA/dllogger.git",
+                            "openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307"
+                            ).run_function(download_model
+                                           ).pip_install("gradio",
+                                                         "biopython",
+                                                         "pandas")
 
 
-
-
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume},image=dockerhub_image)
+@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
 class ESMFold():
     def __enter__(self):
         import esm
@@ -34,6 +32,7 @@ class ESMFold():
         self.model.eval()
         if torch.cuda.is_available():
             self.model = self.model.cuda()
+
     @method()
     def predict(self, job_id, sequence, label):
         import torch
@@ -44,11 +43,11 @@ class ESMFold():
         with open(f"{output_path}/{label}.pdb", "w") as f:
             f.write(output)
         return output
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         import torch
         torch.cuda.empty_cache()
-    
+
 
 @stub.local_entrypoint()
 def predict_structures(fasta_file: str):
@@ -58,7 +57,7 @@ def predict_structures(fasta_file: str):
     print("Structure prediction job started...")
     print(f"Retrieve results using job id {job_id}")
     model = ESMFold()
-    for result in model.predict.starmap(((job_id,str(record.seq),record.id) for record in SeqIO.parse(fasta_file, "fasta")), return_exceptions=True):
+    for result in model.predict.starmap(((job_id, str(record.seq), record.id) for record in SeqIO.parse(fasta_file, "fasta")), return_exceptions=True):
         if isinstance(result, Exception):
             print(f"Error: {result}")
     print("Structure prediction job finished")
