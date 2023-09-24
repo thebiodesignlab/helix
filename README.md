@@ -12,7 +12,7 @@ Running large models and code that scales for big datasets in this repository is
 ## ⚙️ Getting started
 
 1. Create an account at [modal.com](https://modal.com).
-3. Open a terminal and run (requires Python 3.10+): ```bash pip install helix```
+3. Open a terminal and run (requires Python 3.10+): ```bash pip install helixbio```
 4. Run ```bash modal token new```
 
 ## 🧬 Run your first model

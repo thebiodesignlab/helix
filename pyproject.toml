@@ -1,9 +1,12 @@
 [tool.poetry]
-name = "helix"
+name = "helixbio"
 version = "0.1.0"
 description = ""
 authors = ["Ragnor Comerford <hello@ragnor.co>"]
 readme = "README.md"
+packages = [
+    { include = "helix", from = "./" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
