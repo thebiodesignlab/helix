@@ -12,6 +12,7 @@ Running large models and code that scales for big datasets in this repository is
 #### Currently implemented
 - [ESMFold](https://github.com/facebookresearch/esm#esmfold)
 - [ProteinMPNN](https://github.com/dauparas/ProteinMPNN)
+- Parallelized codon optimization with [DNAChisel](https://github.com/Edinburgh-Genome-Foundry/DnaChisel)
 #### Up Next
 - RFDiffusion
 - EvoProtGrad
