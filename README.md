@@ -3,7 +3,7 @@ logo
 <hr>
 
 ### **✨ Run large protein models in less than 30 seconds with Modal. Open an issue if it takes longer! ✨**
-[![PyPI version](https://badge.fury.io/py/helix.svg)](https://badge.fury.io/py/helix)
+[![PyPI version](https://badge.fury.io/py/helixbio.svg)](https://badge.fury.io/py/helixbio)
 </div>
 
 ---
@@ -12,8 +12,8 @@ Running large models and code that scales for big datasets in this repository is
 ## ⚙️ Getting started
 
 1. Create an account at [modal.com](https://modal.com).
-3. Open a terminal and run (requires Python 3.10+): ```bash pip install helixbio```
-4. Run ```bash modal token new```
+3. Open a terminal and run (requires Python 3.10+): `pip install helixbio`
+4. Run `modal token new`
 
 ## 🧬 Run your first model
 
