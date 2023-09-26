@@ -42,7 +42,7 @@ class ESMFold():
         os.makedirs(output_path, exist_ok=True)
         with open(f"{output_path}/{label}.pdb", "w") as f:
             f.write(output)
-        return output
+        return output, label
 
     def __exit__(self, exc_type, exc_value, traceback):
         import torch
@@ -50,15 +50,19 @@ class ESMFold():
 
 
 @stub.local_entrypoint()
-def predict_structures(fasta_file: str):
+def predict_structures(fasta_file: str, output_dir: str):
     from Bio import SeqIO
     job_id = uuid.uuid4()
 
     print("Structure prediction job started...")
-    print(f"Retrieve results using job id {job_id}")
+    print(
+        f"Retrieved results can also be downloaded from the cloud volume using job id {job_id}")
     model = ESMFold()
     for result in model.predict.starmap(((job_id, str(record.seq), record.id) for record in SeqIO.parse(fasta_file, "fasta")), return_exceptions=True):
         if isinstance(result, Exception):
             print(f"Error: {result}")
-    print("Structure prediction job finished")
-    # print(f'Results can also be retrieved by running: modal nfs get "{VOLUME_NAME} {RESULTS_DIR.name}/{job_id}" <local_path>')
+        elif output_dir:
+            print(f"Writing structure for {result[1]} to {output_dir}")
+            with open(f"{output_dir}/{result[1]}.pdb", "w") as f:
+                f.write(result[0])
+    print("Structure prediction job finished successfully.")

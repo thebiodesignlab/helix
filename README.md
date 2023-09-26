@@ -29,7 +29,7 @@ Running large models and code that scales for big datasets in this repository is
 Let's predict a protein structure using ESMFold. This also works in parallel for multiple sequences.
 
 ```bash
-modal run helix.esm::predict_structures --fasta-file "my_lovely_proteins.fasta"
+modal run helix.esm::predict_structures --fasta-file "my_lovely_proteins.fasta" --output-dir "my_lovely_structures"
 ```
 
 ## Contributing
