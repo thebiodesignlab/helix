@@ -1,13 +1,22 @@
-import uuid
+from io import StringIO
 from modal import Image, method
-import os
-from helix.main import CACHE_DIR, RESULTS_DIR, volume, stub
+from helix.main import CACHE_DIR, volume, stub
+from Bio.SeqRecord import SeqRecord
+from Bio.PDB.Structure import Structure
+import transformers
 
 
-def download_model():
-    import esm
-    esm.pretrained.esm2_t36_3B_UR50D()
-    esm.pretrained.esmfold_v1()
+def download_models():
+    from transformers import EsmModel, EsmForProteinFolding
+    EsmForProteinFolding.from_pretrained(
+        "facebook/esmfold_v1")
+    EsmModel.from_pretrained(
+        "facebook/esm2_t36_3B_UR50D")
+    # tokenizers
+    transformers.AutoTokenizer.from_pretrained(
+        "facebook/esmfold_v1")
+    transformers.AutoTokenizer.from_pretrained(
+        "facebook/esm2_t36_3B_UR50D")
 
 
 dockerhub_image = Image.from_registry(
@@ -16,53 +25,100 @@ dockerhub_image = Image.from_registry(
               ).pip_install("fair-esm[esmfold]",
                             "dllogger @ git+https://github.com/NVIDIA/dllogger.git",
                             "openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307"
-                            ).run_function(download_model
-                                           ).pip_install("gradio",
-                                                         "biopython",
-                                                         "pandas")
+                            ).pip_install("gradio",
+                                          "biopython",
+                                          "pandas",
+                                          "transformers",
+                                          "scikit-learn",
+                                          "matplotlib",
+                                          ).run_function(download_models)
 
 
 @stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
-class ESMFold():
-    def __enter__(self):
-        import esm
-        import torch
-        self.model = esm.pretrained.esmfold_v1()
-        self.model.set_chunk_size(64)
-        self.model.eval()
-        if torch.cuda.is_available():
+class EsmModel():
+    def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
+        import transformers
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            model_name)
+        self.model = transformers.AutoModel.from_pretrained(
+            model_name)
+        self.device = device
+        if device == "cuda":
             self.model = self.model.cuda()
+        self.model.eval()
 
     @method()
-    def predict(self, job_id, sequence, label):
+    def infer(self, sequences, output_hidden_states: bool = False, output_attentions: bool = False) -> transformers.modeling_outputs.BaseModelOutputWithPoolingAndCrossAttentions:
         import torch
+        if not torch.cuda.is_available():
+            raise Exception("CUDA is not available")
+        print(f"Running inference on {sequences} sequences")
+        sequences = [str(sequence.seq) for sequence in sequences]
+        tokenized = self.tokenizer(
+            sequences, return_tensors="pt", add_special_tokens=False)['input_ids']
+        tokenized = tokenized.to(self.device)
         with torch.inference_mode():
-            output = self.model.infer_pdb(sequence)
-        output_path = f"{RESULTS_DIR}/{job_id}"
-        os.makedirs(output_path, exist_ok=True)
-        with open(f"{output_path}/{label}.pdb", "w") as f:
-            f.write(output)
-        return output, label
+            outputs = self.model(tokenized, output_hidden_states=output_hidden_states,
+                                 output_attentions=output_attentions)
+        return outputs
 
     def __exit__(self, exc_type, exc_value, traceback):
         import torch
         torch.cuda.empty_cache()
 
 
-@stub.local_entrypoint()
-def predict_structures(fasta_file: str, output_dir: str):
-    from Bio import SeqIO
-    job_id = uuid.uuid4()
+@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+class ESMFold():
+    def __init__(self, device: str = "cuda"):
+        from transformers import AutoTokenizer, EsmForProteinFolding
+        self.tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
+        self.model = EsmForProteinFolding.from_pretrained(
+            "facebook/esmfold_v1",)  # low_cpu_mem_usage=True
+        self.device = device
+        if device == "cuda":
+            self.model = self.model.cuda()
+        self.model.eval()
+        # TODO: Make chunk size configurable?
+        self.model.trunk.set_chunk_size(64)
 
-    print("Structure prediction job started...")
-    print(
-        f"Retrieved results can also be downloaded from the cloud volume using job id {job_id}")
-    model = ESMFold()
-    for result in model.predict.starmap(((job_id, str(record.seq), record.id) for record in SeqIO.parse(fasta_file, "fasta")), return_exceptions=True):
-        if isinstance(result, Exception):
-            print(f"Error: {result}")
-        elif output_dir:
-            print(f"Writing structure for {result[1]} to {output_dir}")
-            with open(f"{output_dir}/{result[1]}.pdb", "w") as f:
-                f.write(result[0])
-    print("Structure prediction job finished successfully.")
+    @method()
+    def infer(self, sequence: SeqRecord) -> Structure:
+        import torch
+        tokenized = self.tokenizer(
+            [str(sequence.seq)], return_tensors="pt", add_special_tokens=False)['input_ids']
+        tokenized = tokenized.to(self.device)
+        with torch.inference_mode():
+            outputs = self.model(tokenized)
+        pdb_structures = self.convert_outputs_to_pdb(outputs)
+        # Convert pdb strings to biopython structures
+        from Bio.PDB import PDBParser
+        parser = PDBParser()
+        structures = [parser.get_structure(
+            sequence.id, StringIO(pdb)) for pdb in pdb_structures]
+        return structures[0]
+
+    @staticmethod
+    def convert_outputs_to_pdb(outputs):
+        from transformers.models.esm.openfold_utils.protein import to_pdb, Protein as OFProtein
+        from transformers.models.esm.openfold_utils.feats import atom14_to_atom37
+        final_atom_positions = atom14_to_atom37(
+            outputs["positions"][-1], outputs)
+        outputs = {k: v.to("cpu").numpy() for k, v in outputs.items()}
+        final_atom_positions = final_atom_positions.cpu().numpy()
+        final_atom_mask = outputs["atom37_atom_exists"]
+        pdbs = []
+        for i in range(outputs["aatype"].shape[0]):
+            aa = outputs["aatype"][i]
+            pred_pos = final_atom_positions[i]
+            mask = final_atom_mask[i]
+            resid = outputs["residue_index"][i] + 1
+            pred = OFProtein(
+                aatype=aa,
+                atom_positions=pred_pos,
+                atom_mask=mask,
+                residue_index=resid,
+                b_factors=outputs["plddt"][i],
+                chain_index=outputs["chain_index"][i] if "chain_index" in outputs else None,
+            )
+            pdbs.append(to_pdb(pred))
+        return pdbs
