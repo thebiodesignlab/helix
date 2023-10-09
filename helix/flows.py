@@ -6,6 +6,8 @@ from helix.main import CACHE_DIR, stub, volume
 from Bio import SeqIO
 from Bio.PDB.PDBIO import PDBIO
 
+from helix.utils import create_batches
+
 # Define type or data strcuture for possible models for structure prediction
 PROTEIN_STRUCTURE_MODELS = {
     "esmfold": ESMFold
@@ -32,10 +34,15 @@ def predict_structures(sequences, model_name: str = "esmfold"):
 
 
 @stub.function(network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
-def perform_pca_on_embeddings(embeddings, n_components: int = 2):
+def perform_pca_on_embeddings(embeddings_dict, n_components: int = 2):
     import io
     import matplotlib.pyplot as plt
     from sklearn.decomposition import PCA
+
+    # Extract embeddings and sequence IDs from the dictionary
+    embeddings = list(embeddings_dict.values())
+    sequence_ids = list(embeddings_dict.keys())
+
     # Perform PCA
     pca = PCA(n_components=n_components)
     pca_embeddings = pca.fit_transform(embeddings)
@@ -43,6 +50,11 @@ def perform_pca_on_embeddings(embeddings, n_components: int = 2):
     # Create a scatter plot of the first two principal components
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1])
+
+    # Add labels to the points
+    for i, sequence_id in enumerate(sequence_ids):
+        ax.text(pca_embeddings[i, 0], pca_embeddings[i, 1], sequence_id)
+
     ax.set_xlabel('Principal Component 1')
     ax.set_ylabel('Principal Component 2')
     ax.set_title('PCA of Protein Embeddings')
@@ -54,27 +66,21 @@ def perform_pca_on_embeddings(embeddings, n_components: int = 2):
 
 @stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
 def get_embeddings(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
-    import numpy as np
     model = EsmModel(model_name=model_name)
-    embeddings = []
+    embeddings = {}
 
-    # Split sequences into batches
-    batches = []
-    for i in range(0, len(sequences), batch_size):
-        batches.append(sequences[i:i + batch_size])
-
-    for results in model.infer.map(batches, return_exceptions=True):
-        if isinstance(results, Exception):
-            print(f"Error: {results}")
+    batched_sequences = create_batches(sequences, batch_size)
+    batched_results = model.infer.map(
+        batched_sequences, return_exceptions=True)
+    for result_batch, sequence_batch in zip(batched_results, batched_sequences):
+        if isinstance(result_batch, Exception):
+            print(f"Error: {result_batch}")
         else:
-            print(f"Successfully predicted embeddings for {results}")
-            # Get the mean of the embeddings to get a single embedding for each sequence
-            embedding = results.last_hidden_state.cpu().detach().numpy().mean(axis=1)
-            # Reshape to 2D
-            embedding = embedding.reshape(-1, embedding.shape[-1])
-            embeddings.append(embedding)
+            embeddings_batch = result_batch.last_hidden_state.cpu().detach().numpy().mean(axis=1)
+            for i, sequence in enumerate(sequence_batch):
+                embeddings[sequence.id] = embeddings_batch[i]
 
-    return np.concatenate(embeddings, axis=0)  # Return a 2D NumPy array
+    return embeddings  # Return a dictionary of embeddings
 
 
 @stub.local_entrypoint()
