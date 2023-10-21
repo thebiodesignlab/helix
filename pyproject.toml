@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "helixbio"
-version = "0.1.0"
+version = "0.1.5"
 description = ""
 authors = ["Ragnor Comerford <hello@ragnor.co>"]
 readme = "README.md"
