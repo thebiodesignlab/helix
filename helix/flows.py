@@ -1,12 +1,13 @@
+from itertools import repeat
 import os
 
 import numpy as np
-from helix.esm import ESMFold, EsmModel, dockerhub_image
-from helix.main import CACHE_DIR, stub, volume
+from .esm import ESMFold, EsmModel, dockerhub_image
+from .main import CACHE_DIR, stub, volume
 from Bio import SeqIO
 from Bio.PDB.PDBIO import PDBIO
 
-from helix.utils import create_batches
+from .utils import create_batches
 
 # Define type or data strcuture for possible models for structure prediction
 PROTEIN_STRUCTURE_MODELS = {
@@ -83,6 +84,31 @@ def get_embeddings(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
     return embeddings  # Return a dictionary of embeddings
 
 
+@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
+
+    model = EsmModel(model_name=model_name)
+    attentions = {}
+
+    batched_sequences = create_batches(sequences, batch_size)
+    batched_results = model.infer.starmap(
+        zip(batched_sequences, repeat(False), repeat(True)), return_exceptions=True)
+    for result_batch, sequence_batch in zip(batched_results, batched_sequences):
+        if isinstance(result_batch, Exception):
+            print(f"Error: {result_batch}")
+        else:
+            # Tuple of torch.FloatTensor (one for each layer) of shape (batch_size, num_heads, sequence_length, sequence_length)
+            attentions_batch = result_batch.attentions
+            # Take the last layer and average over the heads TODO: Make this configurable
+            attentions_batch = attentions_batch[-1].cpu(
+            ).detach().numpy().mean(axis=1)
+
+            for i, sequence in enumerate(sequence_batch):
+                attentions[sequence.id] = attentions_batch[i]
+
+    return attentions
+
+
 @stub.local_entrypoint()
 def predict_structures_from_fasta(fasta_file: str, output_dir: str):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
@@ -108,6 +134,15 @@ def pca_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50
 
 
 @stub.local_entrypoint()
+# Batch size should be low for attention maps, otherwise it will run out of memory
+def get_attentions_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 1):
+    sequences = list(SeqIO.parse(fasta_file, "fasta"))
+    attentions = get_attentions.remote(sequences, model_name, batch_size)
+    return attentions
+
+
+@stub.local_entrypoint()
+# Batch size should be low for attention maps, otherwise it will run out of memory
 def get_embeddings_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
     embeddings = get_embeddings.remote(sequences, model_name, batch_size)
