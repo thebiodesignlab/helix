@@ -1,7 +1,7 @@
 
 
 from dnachisel import AvoidPattern, DnaOptimizationProblem, CodonOptimize, EnforceTranslation, reverse_translate
-from helix.main import stub
+from .main import stub
 from modal import Image
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO

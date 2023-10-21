@@ -1,6 +1,6 @@
 from io import StringIO
-from modal import Image, method
-from helix.main import CACHE_DIR, volume, stub
+from modal import Image, method, Mount
+from .main import CACHE_DIR, volume, stub
 from Bio.SeqRecord import SeqRecord
 from Bio.PDB.Structure import Structure
 import transformers
@@ -31,10 +31,11 @@ dockerhub_image = Image.from_registry(
                                           "transformers",
                                           "scikit-learn",
                                           "matplotlib",
-                                          ).run_function(download_models)
+                                          "seaborn",
+                                          ).run_function(download_models, mounts=[Mount.from_local_python_packages("helix")])
 
 
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image, allow_cross_region_volumes=True)
 class EsmModel():
     def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
         import transformers

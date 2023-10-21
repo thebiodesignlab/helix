@@ -1,6 +1,6 @@
 import pathlib
 from fastapi import FastAPI
-from modal import Image, Stub, NetworkFileSystem, asgi_app
+from modal import Image, Stub, NetworkFileSystem, asgi_app, Mount
 from fastapi.responses import FileResponse, HTMLResponse
 import os
 
@@ -14,7 +14,7 @@ volume = NetworkFileSystem.persisted(VOLUME_NAME)
 
 
 web_app = FastAPI()
-stub = Stub(name="helix")
+stub = Stub(name="helix",mounts=[Mount.from_local_python_packages("helix")])
 image = Image.debian_slim()
 
 
