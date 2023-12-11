@@ -1,20 +1,20 @@
 from argparse import Namespace
 import os
 import sys
+import tempfile
 import uuid
 from modal import Image
+import json
+
+from helix.utils import fetch_pdb_structure
 from .main import RESULTS_DIR, stub, volume, CACHE_DIR
 
 FILE_KEYS = [
     "pdb_path",
-    "jsonl_path",
     "path_to_fasta",
-    "chain_id_jsonl",
-    "fixed_positions_jsonl",
     "pssm_jsonl",
     "omit_aa_jsonl",
     "bias_aa_jsonl",
-    "tied_positions_jsonl",
     "bias_by_res_jsonl",
 ]
 
@@ -58,11 +58,9 @@ def set_paths():
     sys.path.append(protein_mpnn_path)
 
 
-@stub.local_entrypoint()
-def parse_multiple_chains(input_path, output_path, ca_only=False):
+def parse_multiple_chains(input_path, ca_only=False):
     import numpy as np
     import glob
-    import json
     alpha_1 = list("ARNDCQEGHILKMFPSTWYV-")
     states = len(alpha_1)
     alpha_3 = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE',
@@ -187,17 +185,11 @@ def parse_multiple_chains(input_path, output_path, ca_only=False):
         if s < len(chain_alphabet):
             pdb_dict_list.append(my_dict)
             c += 1
-    with open(output_path, 'w') as f:
-        for entry in pdb_dict_list:
-            f.write(json.dumps(entry) + '\n')
+    return pdb_dict_list
 
 
-@stub.local_entrypoint()
-def make_fixed_positions_dict(input_path, output_path, chain_list='', position_list='', specify_non_fixed=False):
+def make_fixed_positions_dict(pdb_dict_list, chain_list='', position_list='', specify_non_fixed=False):
     import numpy as np
-    import json
-    with open(input_path, 'r') as json_file:
-        json_list = list(json_file)
 
     fixed_list = [[int(item) for item in one.split()]
                   for one in position_list.split(",")]
@@ -205,8 +197,7 @@ def make_fixed_positions_dict(input_path, output_path, chain_list='', position_l
     my_dict = {}
 
     if not specify_non_fixed:
-        for json_str in json_list:
-            result = json.loads(json_str)
+        for result in pdb_dict_list:
             all_chain_list = [item[-1:]
                               for item in list(result) if item[:9] == 'seq_chain']
             fixed_position_dict = {}
@@ -217,8 +208,7 @@ def make_fixed_positions_dict(input_path, output_path, chain_list='', position_l
                     fixed_position_dict[chain] = []
             my_dict[result['name']] = fixed_position_dict
     else:
-        for json_str in json_list:
-            result = json.loads(json_str)
+        for result in pdb_dict_list:
             all_chain_list = [item[-1:]
                               for item in list(result) if item[:9] == 'seq_chain']
             fixed_position_dict = {}
@@ -234,23 +224,17 @@ def make_fixed_positions_dict(input_path, output_path, chain_list='', position_l
                         set(all_residue_list)-set(fixed_list[idx]))
             my_dict[result['name']] = fixed_position_dict
 
-    with open(output_path, 'w') as json_file:
-        json.dump(my_dict, json_file)
+    return my_dict
 
 
-@stub.local_entrypoint()
-def assign_fixed_chains(input_path, output_path, chain_list=''):
-    import json
-    with open(input_path, 'r') as json_file:
-        json_list = list(json_file)
+def assign_fixed_chains(pdb_dict_list, chain_list=''):
 
     global_designed_chain_list = []
     if chain_list != '':
         global_designed_chain_list = [str(item) for item in chain_list.split()]
 
     my_dict = {}
-    for json_str in json_list:
-        result = json.loads(json_str)
+    for result in pdb_dict_list:
         all_chain_list = [item[-1:]
                           for item in list(result) if item[:9] == 'seq_chain']
 
@@ -263,8 +247,46 @@ def assign_fixed_chains(input_path, output_path, chain_list=''):
             letter for letter in all_chain_list if letter not in designed_chain_list]
         my_dict[result['name']] = (designed_chain_list, fixed_chain_list)
 
-    with open(output_path, 'w') as f:
-        f.write(json.dumps(my_dict) + '\n')
+    return my_dict
+
+
+def make_tied_positions_dict(pdb_dict_list, chain_list='', position_list='', homooligomer=0):
+
+    homooligomeric_state = homooligomer
+
+    if homooligomeric_state == 0:
+        tied_list = [[int(item) for item in one.split()]
+                     for one in position_list.split(",")]
+        global_designed_chain_list = [str(item) for item in chain_list.split()]
+        my_dict = {}
+        for result in pdb_dict_list:
+            all_chain_list = sorted(
+                [item[-1:] for item in list(result) if item[:9] == 'seq_chain'])
+            tied_positions_list = []
+            for i, pos in enumerate(tied_list[0]):
+                temp_dict = {}
+                for j, chain in enumerate(global_designed_chain_list):
+                    temp_dict[chain] = [tied_list[j][i]]
+                tied_positions_list.append(temp_dict)
+            my_dict[result['name']] = tied_positions_list
+    else:
+        my_dict = {}
+        for result in pdb_dict_list:
+            all_chain_list = sorted(
+                [item[-1:] for item in list(result) if item[:9] == 'seq_chain'])
+            tied_positions_list = []
+            chain_length = len(result[f"seq_chain_{all_chain_list[0]}"])
+            for i in range(1, chain_length + 1):
+                temp_dict = {}
+                for j, chain in enumerate(all_chain_list):
+                    temp_dict[chain] = [i]
+                tied_positions_list.append(temp_dict)
+            my_dict[result['name']] = tied_positions_list
+
+    return my_dict
+
+# Example usage:
+# process_json("input.json", "output.json", chain_list="A,B", position_list="1 2, 3 4", homooligomer=0)
 
 
 @stub.function(image=image, gpu='A10G', network_file_systems={CACHE_DIR: volume})
@@ -284,7 +306,7 @@ def predict(job_id, args):
     import os
 
     from protein_mpnn_utils import _scores, _S_to_seq, tied_featurize, parse_PDB, parse_fasta
-    from protein_mpnn_utils import StructureDataset, StructureDatasetPDB, ProteinMPNN
+    from protein_mpnn_utils import StructureDatasetPDB, ProteinMPNN
 
     if args.seed:
         seed = args.seed
@@ -330,27 +352,6 @@ def predict(job_id, args):
     omit_AAs_np = np.array(
         [AA in omit_aas_list for AA in alphabet]).astype(np.float32)
     device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
-    if os.path.isfile(args.chain_id_jsonl):
-        with open(args.chain_id_jsonl, 'r') as json_file:
-            json_list = list(json_file)
-        for json_str in json_list:
-            chain_id_dict = json.loads(json_str)
-    else:
-        chain_id_dict = None
-        if print_all:
-            print(40*'-')
-            print('chain_id_jsonl is NOT loaded')
-
-    if os.path.isfile(args.fixed_positions_jsonl):
-        with open(args.fixed_positions_jsonl, 'r') as json_file:
-            json_list = list(json_file)
-        for json_str in json_list:
-            fixed_positions_dict = json.loads(json_str)
-    else:
-        if print_all:
-            print(40*'-')
-            print('fixed_positions_jsonl is NOT loaded')
-        fixed_positions_dict = None
 
     if os.path.isfile(args.pssm_jsonl):
         with open(args.pssm_jsonl, 'r') as json_file:
@@ -385,17 +386,6 @@ def predict(job_id, args):
             print(40*'-')
             print('bias_aa_jsonl is NOT loaded')
         bias_AA_dict = None
-
-    if os.path.isfile(args.tied_positions_jsonl):
-        with open(args.tied_positions_jsonl, 'r') as json_file:
-            json_list = list(json_file)
-        for json_str in json_list:
-            tied_positions_dict = json.loads(json_str)
-    else:
-        if print_all:
-            print(40*'-')
-            print('tied_positions_jsonl is NOT loaded')
-        tied_positions_dict = None
 
     if os.path.isfile(args.bias_by_res_jsonl):
         with open(args.bias_by_res_jsonl, 'r') as json_file:
@@ -437,8 +427,9 @@ def predict(job_id, args):
         chain_id_dict[pdb_dict_list[0]['name']] = (
             designed_chain_list, fixed_chain_list)
     else:
-        dataset_valid = StructureDataset(
-            args.jsonl_path, truncate=None, max_length=args.max_length, verbose=print_all)
+        dataset_valid = StructureDatasetPDB(
+            args.pdb_dict_list, truncate=None, max_length=args.max_length, verbose=print_all)
+        chain_id_dict = args.chain_id_dict
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
     noise_level_print = checkpoint['noise_level']
@@ -497,7 +488,7 @@ def predict(job_id, args):
             batch_clones = [copy.deepcopy(protein)
                             for i in range(BATCH_COPIES)]
             X, S, mask, lengths, chain_M, chain_encoding_all, chain_list_list, visible_list_list, masked_list_list, masked_chain_length_list_list, chain_M_pos, omit_AA_mask, residue_idx, dihedral_mask, tied_pos_list_of_lists_list, pssm_coef, pssm_bias, pssm_log_odds_all, bias_by_res_all, tied_beta = tied_featurize(
-                batch_clones, device, chain_id_dict, fixed_positions_dict, omit_AA_dict, tied_positions_dict, pssm_dict, bias_by_res_dict, ca_only=args.ca_only)
+                batch_clones, device, chain_id_dict, args.fixed_positions_dict, omit_AA_dict, args.tied_positions_dict, pssm_dict, bias_by_res_dict, ca_only=args.ca_only)
             # 1.0 for true, 0.0 for false
             pssm_log_odds_mask = (pssm_log_odds_all >
                                   args.pssm_threshold).float()
@@ -622,7 +613,7 @@ def predict(job_id, args):
                         for j in range(NUM_BATCHES):
                             randn_2 = torch.randn(
                                 chain_M.shape, device=X.device)
-                            if tied_positions_dict is None:
+                            if args.tied_positions_dict is None:
                                 sample_dict = model.sample(X, randn_2, S, chain_M, chain_encoding_all, residue_idx, mask=mask, temperature=temp, omit_AAs_np=omit_AAs_np, bias_AAs_np=bias_AAs_np, chain_M_pos=chain_M_pos, omit_AA_mask=omit_AA_mask, pssm_coef=pssm_coef,
                                                            pssm_bias=pssm_bias, pssm_multi=args.pssm_multi, pssm_log_odds_flag=bool(args.pssm_log_odds_flag), pssm_log_odds_mask=pssm_log_odds_mask, pssm_bias_flag=bool(args.pssm_bias_flag), bias_by_res=bias_by_res_all)
                                 S_sample = sample_dict["S"]
@@ -744,6 +735,8 @@ def predict(job_id, args):
 
 @stub.local_entrypoint()
 def run(
+    input_path: str = "",
+    pdb_ids: str = "",
     suppress_print: int = 0,
     ca_only: bool = False,
     model_name: str = "v_48_020",
@@ -763,9 +756,6 @@ def run(
     sampling_temp: str = "0.1",
     pdb_path: str = "",
     pdb_path_chains: str = "",
-    jsonl_path: str = None,
-    chain_id_jsonl: str = "",
-    fixed_positions_jsonl: str = "",
     bias_aa_jsonl: str = "",
     bias_by_res_jsonl: str = "",
     omit_aa_jsonl: str = "",
@@ -774,9 +764,41 @@ def run(
     pssm_threshold: float = 0.0,
     pssm_log_odds_flag: int = 0,
     pssm_bias_flag: int = 0,
-    tied_positions_jsonl: str = "",
-    omit_aas: str = "X"
+    chains_to_design: str = "",
+    fixed_positions: str = "",
+    tied_positions: str = "",
+    omit_aas: str = "X",
+    homooligomer: int = 0,
 ):
+    from Bio.PDB import PDBIO
+
+    if pdb_ids:
+        temp_dir = tempfile.mkdtemp()
+        for pdb_id in pdb_ids.split():
+            structure = fetch_pdb_structure(pdb_id)
+            io = PDBIO()
+            io.set_structure(structure)
+            io.save(os.path.join(temp_dir, pdb_id + ".pdb"))
+
+        pdb_dict_list = parse_multiple_chains(temp_dir, ca_only=ca_only)
+
+    elif input_path:
+        pdb_dict_list = parse_multiple_chains(input_path, ca_only=ca_only)
+    tied_positions_dict = None
+    fixed_positions_dict = None
+    chain_id_dict = None
+
+    if not pdb_dict_list:
+        raise ValueError("No PDB files found")
+
+    if chains_to_design:
+        chain_id_dict = assign_fixed_chains(pdb_dict_list, chains_to_design)
+    if fixed_positions:
+        fixed_positions_dict = make_fixed_positions_dict(
+            pdb_dict_list, chains_to_design, fixed_positions)
+    if tied_positions:
+        tied_positions_dict = make_tied_positions_dict(
+            pdb_dict_list, chains_to_design, tied_positions, homooligomer)
 
     args = Namespace(
         suppress_print=suppress_print,
@@ -798,9 +820,7 @@ def run(
         sampling_temp=sampling_temp,
         pdb_path=pdb_path,
         pdb_path_chains=pdb_path_chains,
-        jsonl_path=jsonl_path,
-        chain_id_jsonl=chain_id_jsonl,
-        fixed_positions_jsonl=fixed_positions_jsonl,
+        pdb_dict_list=pdb_dict_list,
         bias_aa_jsonl=bias_aa_jsonl,
         bias_by_res_jsonl=bias_by_res_jsonl,
         omit_aa_jsonl=omit_aa_jsonl,
@@ -809,7 +829,9 @@ def run(
         pssm_threshold=pssm_threshold,
         pssm_log_odds_flag=pssm_log_odds_flag,
         pssm_bias_flag=pssm_bias_flag,
-        tied_positions_jsonl=tied_positions_jsonl,
+        tied_positions_dict=tied_positions_dict,
+        fixed_positions_dict=fixed_positions_dict,
+        chain_id_dict=chain_id_dict,
         # Modal does not support parsing lists in local entrypoints
         omit_aas=list(omit_aas)
     )
@@ -833,3 +855,20 @@ def run(
     print(f"Job started. Retrieve results using job id {job_id}")
     predict.remote(job_id, args)
     print(f"Job finished. Retrieve results using job id {job_id}")
+
+    # Convert args to JSON and write to file
+    args_dict = args.__dict__
+    args_dict["job_id"] = str(job_id)
+    args_dict["file_contents"] = file_contents
+    args_json = json.dumps(args_dict)
+
+    args_json_path = os.path.join(
+        os.path.dirname(__file__), f"job_{job_id}.json")
+    with open(args_json_path, "w") as f:
+        f.write(args_json)
+
+
+@stub.local_entrypoint()
+def test_chains(input_path: str):
+    pdb_list = parse_multiple_chains(input_path)
+    print(make_fixed_positions_dict(pdb_list))

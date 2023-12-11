@@ -14,7 +14,7 @@ volume = NetworkFileSystem.persisted(VOLUME_NAME)
 
 
 web_app = FastAPI()
-stub = Stub(name="helix",mounts=[Mount.from_local_python_packages("helix")])
+stub = Stub(name="helix", mounts=[Mount.from_local_python_packages("helix")])
 image = Image.debian_slim()
 
 

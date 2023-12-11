@@ -35,7 +35,7 @@ dockerhub_image = Image.from_registry(
                                           ).run_function(download_models, mounts=[Mount.from_local_python_packages("helix")])
 
 
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image, allow_cross_region_volumes=True)
+@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EsmModel():
     def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
         import transformers
@@ -62,6 +62,44 @@ class EsmModel():
             outputs = self.model(tokenized, output_hidden_states=output_hidden_states,
                                  output_attentions=output_attentions)
         return outputs
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        import torch
+        torch.cuda.empty_cache()
+
+
+@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image, allow_cross_region_volumes=True, concurrency_limit=9)
+class EsmForMaskedLM():
+    def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
+        import transformers
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            model_name)
+        self.model = transformers.AutoModelForMaskedLM.from_pretrained(
+            model_name)
+        self.device = device
+        if device == "cuda":
+            self.model = self.model.cuda()
+        self.model.eval()
+
+    @method()
+    def get_likelihood(self, sequence: str) -> float:
+        import torch
+        import numpy as np
+        tokenized = self.tokenizer.encode(sequence, return_tensors='pt')
+        repeat_input = tokenized.repeat(tokenized.size(-1)-2, 1)
+
+        # mask one by one except [CLS] and [SEP]
+        mask = torch.ones(tokenized.size(-1) - 1).diag(1)[:-2]
+        masked_input = repeat_input.masked_fill(
+            mask == 1, self.tokenizer.mask_token_id)
+
+        labels = repeat_input.masked_fill(
+            masked_input != self.tokenizer.mask_token_id, -100)
+        with torch.inference_mode():
+            outputs = self.model(masked_input.to(
+                self.device), labels=labels.to(self.device))
+            loss = outputs.loss
+        return np.exp(loss.item())
 
     def __exit__(self, exc_type, exc_value, traceback):
         import torch

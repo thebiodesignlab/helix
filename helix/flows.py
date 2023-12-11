@@ -2,7 +2,7 @@ from itertools import repeat
 import os
 
 import numpy as np
-from .esm import ESMFold, EsmModel, dockerhub_image
+from .esm import ESMFold, EsmModel, EsmForMaskedLM, dockerhub_image
 from .main import CACHE_DIR, stub, volume
 from Bio import SeqIO
 from Bio.PDB.PDBIO import PDBIO
@@ -85,6 +85,22 @@ def get_embeddings(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
 
 
 @stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+def get_perplexities(sequences, model_name: str = "facebook/esm2_t33_650M_UR50D", batch_size: int = 32):
+    model = EsmForMaskedLM(model_name=model_name)
+    perplexities = {}
+
+    results = model.get_likelihood.map(
+        [str(sequence.seq) for sequence in sequences], return_exceptions=True)
+    for result, sequence in zip(results, sequences):
+        if isinstance(result, Exception):
+            print(f"Error: {result}")
+        else:
+            perplexities[sequence.id] = result
+
+    return perplexities  # Return a dictionary of perplexities
+
+
+@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
 def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
 
     model = EsmModel(model_name=model_name)
@@ -112,7 +128,7 @@ def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
 @stub.local_entrypoint()
 def predict_structures_from_fasta(fasta_file: str, output_dir: str):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
-    result = predict_structures.remote(sequences)
+    result = predict_structures(sequences)
     os.makedirs(output_dir, exist_ok=True)
     for struct in result:
         io = PDBIO()
@@ -145,5 +161,6 @@ def get_attentions_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_
 # Batch size should be low for attention maps, otherwise it will run out of memory
 def get_embeddings_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
-    embeddings = get_embeddings.remote(sequences, model_name, batch_size)
+    embeddings = get_perplexities.remote(sequences, model_name, batch_size)
+    print(embeddings)
     return embeddings
