@@ -3,6 +3,9 @@ from modal import Image, method, Mount
 from .main import CACHE_DIR, volume, stub
 from Bio.SeqRecord import SeqRecord
 from Bio.PDB.Structure import Structure
+from Bio import SeqIO
+from Bio.PDB.PDBIO import PDBIO
+import os
 import transformers
 
 
@@ -174,3 +177,38 @@ class ESMFold():
             )
             pdbs.append(to_pdb(pred))
         return pdbs
+
+
+PROTEIN_STRUCTURE_MODELS = {
+    "esmfold": ESMFold
+}
+
+
+@stub.function(network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+def predict_structures(sequences, model_name: str = "esmfold"):
+    if model_name not in PROTEIN_STRUCTURE_MODELS:
+        raise ValueError(
+            f"Model {model_name} is not supported. Supported models are: {list(PROTEIN_STRUCTURE_MODELS.keys())}")
+    print(f"Using model {model_name}")
+    print(f"Predicting structures for {len(sequences)} sequences")
+    model = PROTEIN_STRUCTURE_MODELS[model_name]()
+
+    result = []
+    for struct in model.infer.map(sequences, return_exceptions=True):
+        if isinstance(struct, Exception):
+            print(f"Error: {struct}")
+        else:
+            print(f"Successfully predicted structure for {struct.id}")
+            result.append(struct)
+    return result
+
+
+@stub.local_entrypoint()
+def predict_structures_from_fasta(fasta_file: str, output_dir: str):
+    sequences = list(SeqIO.parse(fasta_file, "fasta"))
+    result = predict_structures(sequences)
+    os.makedirs(output_dir, exist_ok=True)
+    for struct in result:
+        io = PDBIO()
+        io.set_structure(struct)
+        io.save(f"{output_dir}/{struct.id}.pdb")
