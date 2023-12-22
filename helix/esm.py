@@ -206,7 +206,7 @@ def predict_structures(sequences, model_name: str = "esmfold"):
 @stub.local_entrypoint()
 def predict_structures_from_fasta(fasta_file: str, output_dir: str):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
-    result = predict_structures(sequences)
+    result = predict_structures.remote(sequences)
     os.makedirs(output_dir, exist_ok=True)
     for struct in result:
         io = PDBIO()
