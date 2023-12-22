@@ -14,8 +14,10 @@ biopython = "^1.81"
 modal = "^0.55.4127"
 dnachisel = "^3.2.11"
 torch = "^2.0.1"
-transformers = "^4.33.3"
+transformers = {version = "4.30.0", extras = ["torch"]}
 matplotlib = "^3.8.0"
+evo-prot-grad = "^0.1.4"
+pandas = "^2.1.4"
 
 
 [tool.poetry.group.dev.dependencies]
