@@ -82,7 +82,7 @@ class EsmForMaskedLM():
         self.model.eval()
 
     @method()
-    def get_likelihood(self, sequence: str) -> float:
+    def perplexity(self, sequence: str, batch_size: int = 32) -> float:
         import torch
         import numpy as np
         tokenized = self.tokenizer.encode(sequence, return_tensors='pt')
@@ -95,11 +95,24 @@ class EsmForMaskedLM():
 
         labels = repeat_input.masked_fill(
             masked_input != self.tokenizer.mask_token_id, -100)
-        with torch.inference_mode():
-            outputs = self.model(masked_input.to(
-                self.device), labels=labels.to(self.device))
-            loss = outputs.loss
-        return np.exp(loss.item())
+
+        # Initialize loss accumulator
+        total_loss = 0.0
+
+        # Process in batches
+        for i in range(0, masked_input.size(0), batch_size):
+            batch_masked_input = masked_input[i:i+batch_size].to(self.device)
+            batch_labels = labels[i:i+batch_size].to(self.device)
+
+            with torch.inference_mode():
+                outputs = self.model(batch_masked_input, labels=batch_labels)
+                loss = outputs.loss
+                total_loss += loss.item() * batch_masked_input.size(0)
+
+        # Calculate average loss
+        avg_loss = total_loss / masked_input.size(0)
+
+        return np.exp(avg_loss)
 
     def __exit__(self, exc_type, exc_value, traceback):
         import torch

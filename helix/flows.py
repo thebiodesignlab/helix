@@ -89,7 +89,7 @@ def get_perplexities(sequences, model_name: str = "facebook/esm2_t33_650M_UR50D"
     model = EsmForMaskedLM(model_name=model_name)
     perplexities = {}
 
-    results = model.get_likelihood.map(
+    results = model.perplexity.map(
         [str(sequence.seq) for sequence in sequences], return_exceptions=True)
     for result, sequence in zip(results, sequences):
         if isinstance(result, Exception):
@@ -161,6 +161,6 @@ def get_attentions_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_
 # Batch size should be low for attention maps, otherwise it will run out of memory
 def get_embeddings_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
-    embeddings = get_perplexities.remote(sequences, model_name, batch_size)
+    embeddings = get_embeddings.remote(sequences, model_name, batch_size)
     print(embeddings)
     return embeddings
