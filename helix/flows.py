@@ -2,36 +2,11 @@ from itertools import repeat
 import os
 
 import numpy as np
-from .esm import ESMFold, EsmModel, EsmForMaskedLM, dockerhub_image
+from .esm import EsmModel, EsmForMaskedLM, dockerhub_image
 from .main import CACHE_DIR, stub, volume
 from Bio import SeqIO
-from Bio.PDB.PDBIO import PDBIO
 
 from .utils import create_batches
-
-# Define type or data strcuture for possible models for structure prediction
-PROTEIN_STRUCTURE_MODELS = {
-    "esmfold": ESMFold
-}
-
-
-@stub.function(network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
-def predict_structures(sequences, model_name: str = "esmfold"):
-    if model_name not in PROTEIN_STRUCTURE_MODELS:
-        raise ValueError(
-            f"Model {model_name} is not supported. Supported models are: {list(PROTEIN_STRUCTURE_MODELS.keys())}")
-    print(f"Using model {model_name}")
-    print(f"Predicting structures for {len(sequences)} sequences")
-    model = PROTEIN_STRUCTURE_MODELS[model_name]()
-
-    result = []
-    for struct in model.infer.map(sequences, return_exceptions=True):
-        if isinstance(struct, Exception):
-            print(f"Error: {struct}")
-        else:
-            print(f"Successfully predicted structure for {struct.id}")
-            result.append(struct)
-    return result
 
 
 @stub.function(network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
@@ -123,17 +98,6 @@ def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
                 attentions[sequence.id] = attentions_batch[i]
 
     return attentions
-
-
-@stub.local_entrypoint()
-def predict_structures_from_fasta(fasta_file: str, output_dir: str):
-    sequences = list(SeqIO.parse(fasta_file, "fasta"))
-    result = predict_structures(sequences)
-    os.makedirs(output_dir, exist_ok=True)
-    for struct in result:
-        io = PDBIO()
-        io.set_structure(struct)
-        io.save(f"{output_dir}/{struct.id}.pdb")
 
 
 @stub.local_entrypoint()
