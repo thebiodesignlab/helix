@@ -11,29 +11,41 @@ image = Image.debian_slim().pip_install(
     "pandas")
 
 
-@stub.cls(gpu='any', timeout=2000, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
+@stub.cls(gpu='A10G', timeout=2000, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EvoProtGrad:
     def __init__(self, experts: list[str] = ["esm"], device: str = "cuda"):
         from evo_prot_grad import get_expert
-        self.experts = [get_expert(
-            expert_name=expert, temperature=1.0, device=device) for expert in experts]
+        from transformers import EsmForMaskedLM, AutoTokenizer
+        self.experts = []
+        for expert in experts:
+            model = None
+            tokenizer = None
+            if "/esm" in expert:
+                model = EsmForMaskedLM.from_pretrained(expert)
+                tokenizer = AutoTokenizer.from_pretrained(expert)
+                expert = "esm"
+            self.experts.append(get_expert(
+                expert_name=expert, temperature=1.0, device=device, model=model, tokenizer=tokenizer))
 
     @method()
     def evolve(self, sequence: str, n_steps: int = 100, parallel_chains: int = 10, max_mutations: int = -1, random_seed: int = None):
         from evo_prot_grad import DirectedEvolution
 
-        variants, scores = DirectedEvolution(wt_protein=sequence, experts=self.experts, n_steps=n_steps,
-                                             parallel_chains=parallel_chains, max_mutations=max_mutations, random_seed=random_seed, output="best")()
-        variants = [variant.replace(' ', '') for variant in variants]
+        try:
+            variants, scores = DirectedEvolution(wt_protein=sequence, experts=self.experts, n_steps=n_steps,
+                                                 parallel_chains=parallel_chains, max_mutations=max_mutations, random_seed=random_seed, output="best")()
+            variants = [variant.replace(' ', '') for variant in variants]
+        except Exception as e:
+            print(e)
+            return e, None
         return variants, scores
 
 
 @stub.local_entrypoint()
-def get_evoprotgrad_variants(sequence: str, output_csv_file: str = None, output_fasta_file: str = None, experts: str = "esm", n_steps: int = 100, parallel_chains: int = 20, max_mutations: int = -1, random_seed: int = None):
+def get_evoprotgrad_variants(sequence: str, output_csv_file: str = None, output_fasta_file: str = None, experts: str = "esm", n_steps: int = 100, num_chains: int = 20, max_mutations: int = -1, random_seed: int = None, concurrency_limit: int = 30):
     from .evoprotgrad import EvoProtGrad
     from helix.utils import dataframe_to_fasta, count_mutations
 
-    max_chains_per_call = 30
     experts = experts.split(",")
     evoprotgrad = EvoProtGrad(experts=experts)
 
@@ -41,13 +53,18 @@ def get_evoprotgrad_variants(sequence: str, output_csv_file: str = None, output_
         raise Exception(
             "Must specify either output_csv_file or output_fasta_file")
 
-    num_calls = parallel_chains // max_chains_per_call
-    remaining_chains = parallel_chains % max_chains_per_call
+    num_calls = num_chains // concurrency_limit
+    remaining_chains = num_chains % concurrency_limit
     print(
-        f"Running {parallel_chains} parallel chains in {num_calls+1} containers")
+        f"Running {num_chains} parallel chains in {num_calls+1} containers")
 
     results = []
-    for variants, scores in evoprotgrad.evolve.starmap([(sequence, n_steps, remaining_chains, max_mutations, random_seed)] + [(sequence, n_steps, max_chains_per_call, max_mutations, random_seed) for _ in range(num_calls)], return_exceptions=True):
+    args = [(sequence, n_steps, concurrency_limit, max_mutations, random_seed)
+            for _ in range(num_calls)]
+    if remaining_chains > 0:
+        args.append((sequence, n_steps, remaining_chains,
+                    max_mutations, random_seed))
+    for variants, scores in evoprotgrad.evolve.starmap(args, return_exceptions=True):
         if isinstance(variants, Exception):
             print(f"Error: {variants}")
         else:
