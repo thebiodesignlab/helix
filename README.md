@@ -36,7 +36,7 @@ modal run helix.esm::predict_structures_from_fasta --fasta-file "my_lovely_prote
 Generate protein variants using [EvoProtGrad](https://github.com/NREL/EvoProtGrad/).
 
 ```bash
-modal run helix.evoprotgrad::get_evoprotgrad_variants --sequence "MSGKIDKILIVGGGTAGWMAASYLGKALQGTADITLLQAPDIP"  --max-mutations 4 --parallel-chains 10 --n-steps 200 --output-csv-file "my-variants.csv" --output-fasta-file "my-variants.fasta"
+modal run helix.evoprotgrad::get_evoprotgrad_variants --sequence "MSGKIDKILIVGGGTAGWMAASYLGKALQGTADITLLQAPDIP"  --max-mutations 4 --num-chains 20 --n-steps 200 --output-csv-file "my-variants.csv" --output-fasta-file "my-variants.fasta"
 ```
 
 ## Contributing
