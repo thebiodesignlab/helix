@@ -22,23 +22,15 @@ def download_models():
         "facebook/esm2_t36_3B_UR50D")
 
 
-dockerhub_image = Image.from_registry(
-    "pytorch/pytorch:1.12.1-cuda11.3-cudnn8-devel"
-).apt_install("git"
-              ).pip_install("fair-esm[esmfold]",
-                            "dllogger @ git+https://github.com/NVIDIA/dllogger.git",
-                            "openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307"
-                            ).pip_install("gradio",
-                                          "biopython",
-                                          "pandas",
-                                          "transformers",
-                                          "scikit-learn",
-                                          "matplotlib",
-                                          "seaborn",
-                                          ).run_function(download_models, mounts=[Mount.from_local_python_packages("helix")])
+image = Image.debian_slim().apt_install("git").pip_install(
+    "torch",
+    "biopython",
+    "matplotlib",
+    "transformers",
+    "pandas").run_function(download_models, mounts=[Mount.from_local_python_packages("helix")])
 
 
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image, allow_cross_region_volumes=True, concurrency_limit=9)
+@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EsmModel():
     def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
         import transformers
@@ -71,7 +63,7 @@ class EsmModel():
         torch.cuda.empty_cache()
 
 
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image, allow_cross_region_volumes=True, concurrency_limit=9)
+@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EsmForMaskedLM():
     def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
         import transformers
@@ -85,7 +77,9 @@ class EsmForMaskedLM():
         self.model.eval()
 
     @method()
-    def perplexity(self, sequence: str, batch_size: int = 32) -> float:
+    def score(self, sequence: str, batch_size: int = 32) -> float:
+        # Reference: Masked Language Model Scoring
+        # https://arxiv.org/abs/1910.14659
         import torch
         import numpy as np
         tokenized = self.tokenizer.encode(sequence, return_tensors='pt')
@@ -122,7 +116,7 @@ class EsmForMaskedLM():
         torch.cuda.empty_cache()
 
 
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+@stub.cls(gpu="A10G", timeout=6000, network_file_systems={CACHE_DIR: volume}, image=image)
 class ESMFold():
     def __init__(self, device: str = "cuda"):
         from transformers import AutoTokenizer, EsmForProteinFolding
@@ -137,20 +131,22 @@ class ESMFold():
         self.model.trunk.set_chunk_size(64)
 
     @method()
-    def infer(self, sequence: SeqRecord) -> Structure:
+    def infer(self, sequences: list[SeqRecord]) -> Structure:
         import torch
+        from Bio.PDB import PDBParser
+        parser = PDBParser()
+        structures = []
         tokenized = self.tokenizer(
-            [str(sequence.seq)], return_tensors="pt", add_special_tokens=False)['input_ids']
+            [str(seq_record.seq) for seq_record in sequences], return_tensors="pt", add_special_tokens=False)['input_ids']
         tokenized = tokenized.to(self.device)
         with torch.inference_mode():
             outputs = self.model(tokenized)
         pdb_structures = self.convert_outputs_to_pdb(outputs)
         # Convert pdb strings to biopython structures
-        from Bio.PDB import PDBParser
-        parser = PDBParser()
-        structures = [parser.get_structure(
-            sequence.id, StringIO(pdb)) for pdb in pdb_structures]
-        return structures[0]
+        for seq_record, pdb in zip(sequences, pdb_structures):
+            structure = parser.get_structure(seq_record.id, StringIO(pdb))
+            structures.append(structure)
+        return structures
 
     @staticmethod
     def convert_outputs_to_pdb(outputs):
@@ -184,29 +180,41 @@ PROTEIN_STRUCTURE_MODELS = {
 }
 
 
-@stub.function(network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
-def predict_structures(sequences, model_name: str = "esmfold"):
+@stub.function(network_file_systems={CACHE_DIR: volume}, image=image, timeout=10000)
+def predict_structures(sequences, model_name: str = "esmfold", batch_size: int = 1):
+    from helix.utils import create_batches
     if model_name not in PROTEIN_STRUCTURE_MODELS:
         raise ValueError(
             f"Model {model_name} is not supported. Supported models are: {list(PROTEIN_STRUCTURE_MODELS.keys())}")
     print(f"Using model {model_name}")
     print(f"Predicting structures for {len(sequences)} sequences")
     model = PROTEIN_STRUCTURE_MODELS[model_name]()
+    batched_sequences = create_batches(sequences, batch_size)
 
     result = []
-    for struct in model.infer.map(sequences, return_exceptions=True):
-        if isinstance(struct, Exception):
-            print(f"Error: {struct}")
-        else:
-            print(f"Successfully predicted structure for {struct.id}")
-            result.append(struct)
+    for batched_results in model.infer.map(batched_sequences, return_exceptions=True):
+        for struct in batched_results:
+            if isinstance(struct, Exception):
+                print(f"Error: {struct}")
+            else:
+                print(f"Successfully predicted structure for {struct.id}")
+                result.append(struct)
     return result
 
 
 @stub.local_entrypoint()
-def predict_structures_from_fasta(fasta_file: str, output_dir: str):
+def predict_structures_from_fasta(fasta_file: str, output_dir: str, batch_size: int = 1):
+    """
+    Predicts protein structures from a given FASTA file and saves them as PDB files in the specified output directory.
+
+    Args:
+        fasta_file (str): Path to the FASTA file containing protein sequences.
+        output_dir (str): Directory where the PDB files will be saved.
+        batch_size (int): Number of sequences to process in a batch. Default is 1 due to high memory usage of the model.
+                          For shorter sequences, the batch size can be increased.
+    """
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
-    result = predict_structures.remote(sequences)
+    result = predict_structures.remote(sequences, batch_size=batch_size)
     os.makedirs(output_dir, exist_ok=True)
     for struct in result:
         io = PDBIO()

@@ -2,14 +2,14 @@ from itertools import repeat
 import os
 
 import numpy as np
-from .esm import EsmModel, EsmForMaskedLM, dockerhub_image
+from .esm import EsmModel, EsmForMaskedLM, image as esm_image
 from .main import CACHE_DIR, stub, volume
 from Bio import SeqIO
 
 from .utils import create_batches
 
 
-@stub.function(network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+@stub.function(network_file_systems={CACHE_DIR: volume}, image=esm_image)
 def perform_pca_on_embeddings(embeddings_dict, n_components: int = 2):
     import io
     import matplotlib.pyplot as plt
@@ -40,7 +40,7 @@ def perform_pca_on_embeddings(embeddings_dict, n_components: int = 2):
     return img
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image)
 def get_embeddings(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
     model = EsmModel(model_name=model_name)
     embeddings = {}
@@ -59,12 +59,12 @@ def get_embeddings(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
     return embeddings  # Return a dictionary of embeddings
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
-def get_perplexities(sequences, model_name: str = "facebook/esm2_t33_650M_UR50D", batch_size: int = 32):
+@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image)
+def get_scores(sequences, model_name: str = "facebook/esm2_t33_650M_UR50D", batch_size: int = 32):
     model = EsmForMaskedLM(model_name=model_name)
     perplexities = {}
 
-    results = model.perplexity.map(
+    results = model.score.map(
         [str(sequence.seq) for sequence in sequences], return_exceptions=True)
     for result, sequence in zip(results, sequences):
         if isinstance(result, Exception):
@@ -75,7 +75,7 @@ def get_perplexities(sequences, model_name: str = "facebook/esm2_t33_650M_UR50D"
     return perplexities  # Return a dictionary of perplexities
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=dockerhub_image)
+@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image)
 def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
 
     model = EsmModel(model_name=model_name)
