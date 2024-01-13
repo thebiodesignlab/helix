@@ -4,11 +4,19 @@ from modal import Image, method
 import pandas as pd
 from .main import stub
 
+
+def download_esm_models(slugs: list[str] = ["facebook/esm1b_t33_650M_UR50S", "facebook/esm2_t33_650M_UR50D"]):
+    from transformers import EsmForMaskedLM, AutoTokenizer
+    for slug in slugs:
+        EsmForMaskedLM.from_pretrained(slug)
+        AutoTokenizer.from_pretrained(slug)
+
+
 image = Image.debian_slim().pip_install(
     "transformers[torch]==4.30.0",
     "torch",
     "evo_prot_grad",
-    "pandas")
+    "pandas").run_function(download_esm_models)
 
 
 @stub.cls(gpu='A10G', timeout=2000, image=image, allow_cross_region_volumes=True, concurrency_limit=9)

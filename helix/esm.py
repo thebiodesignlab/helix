@@ -1,5 +1,5 @@
 from io import StringIO
-from modal import Image, method, Mount
+from modal import Image, method
 from .main import CACHE_DIR, volume, stub
 from Bio.SeqRecord import SeqRecord
 from Bio.PDB.Structure import Structure
@@ -10,15 +10,16 @@ import transformers
 
 
 def download_models():
-    from transformers import EsmModel, EsmForProteinFolding
+    from transformers import EsmModel, EsmForProteinFolding, AutoTokenizer
+
     EsmForProteinFolding.from_pretrained(
         "facebook/esmfold_v1")
+    AutoTokenizer.from_pretrained(
+        "facebook/esmfold_v1")
+
     EsmModel.from_pretrained(
         "facebook/esm2_t36_3B_UR50D")
-    # tokenizers
-    transformers.AutoTokenizer.from_pretrained(
-        "facebook/esmfold_v1")
-    transformers.AutoTokenizer.from_pretrained(
+    AutoTokenizer.from_pretrained(
         "facebook/esm2_t36_3B_UR50D")
 
 
@@ -27,7 +28,8 @@ image = Image.debian_slim().apt_install("git").pip_install(
     "biopython",
     "matplotlib",
     "transformers",
-    "pandas").run_function(download_models, mounts=[Mount.from_local_python_packages("helix")])
+    "pandas"
+).run_function(download_models)
 
 
 @stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
