@@ -51,7 +51,6 @@ class EsmModel():
         if not torch.cuda.is_available():
             raise Exception("CUDA is not available")
         print(f"Running inference on {sequences} sequences")
-        sequences = [str(sequence.seq) for sequence in sequences]
         tokenized = self.tokenizer(
             sequences, return_tensors="pt", add_special_tokens=False)['input_ids']
         tokenized = tokenized.to(self.device)

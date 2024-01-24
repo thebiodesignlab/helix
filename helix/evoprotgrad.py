@@ -5,7 +5,7 @@ import pandas as pd
 from .main import stub
 
 
-def download_esm_models(slugs: list[str] = ["facebook/esm1b_t33_650M_UR50S", "facebook/esm2_t33_650M_UR50D"]):
+def download_esm_models(slugs: list[str] = ["facebook/esm1b_t33_650M_UR50S", "facebook/esm2_t33_650M_UR50D", "facebook/esm2_t36_3B_UR50D"]):
     from transformers import EsmForMaskedLM, AutoTokenizer
     for slug in slugs:
         EsmForMaskedLM.from_pretrained(slug)

@@ -117,6 +117,7 @@ def pca_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50
 # Batch size should be low for attention maps, otherwise it will run out of memory
 def get_attentions_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 1):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
+    sequences = [str(sequence.seq) for sequence in sequences]
     attentions = get_attentions.remote(sequences, model_name, batch_size)
     return attentions
 
@@ -125,6 +126,7 @@ def get_attentions_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_
 # Batch size should be low for attention maps, otherwise it will run out of memory
 def get_embeddings_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
+    sequences = [str(sequence.seq) for sequence in sequences]
     embeddings = get_embeddings.remote(sequences, model_name, batch_size)
     print(embeddings)
     return embeddings
