@@ -1,9 +1,11 @@
 from io import StringIO
 from modal import Image, method
 from .main import CACHE_DIR, volume, stub
-from Bio.SeqRecord import SeqRecord
+import modal
 from Bio.PDB.Structure import Structure
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 from Bio.PDB.PDBIO import PDBIO
 import os
 import transformers
@@ -46,7 +48,7 @@ class EsmModel():
         self.model.eval()
 
     @method()
-    def infer(self, sequences, output_hidden_states: bool = False, output_attentions: bool = False) -> transformers.modeling_outputs.BaseModelOutputWithPoolingAndCrossAttentions:
+    def infer(self, sequences, output_hidden_states: bool = False, output_attentions: bool = False, return_logits: bool = False) -> transformers.modeling_outputs.BaseModelOutputWithPoolingAndCrossAttentions:
         import torch
         if not torch.cuda.is_available():
             raise Exception("CUDA is not available")
@@ -76,6 +78,15 @@ class EsmForMaskedLM():
         if device == "cuda":
             self.model = self.model.cuda()
         self.model.eval()
+
+    @method()
+    def infer(self, sequence: str) -> transformers.modeling_outputs.MaskedLMOutput:
+        import torch
+        tokenized = self.tokenizer.encode(sequence, return_tensors='pt')
+        tokenized = tokenized.to(self.device)
+        with torch.inference_mode():
+            outputs = self.model(tokenized, return_dict=True)
+        return outputs
 
     @method()
     def score(self, sequence: str, batch_size: int = 32) -> float:
@@ -112,7 +123,61 @@ class EsmForMaskedLM():
 
         return np.exp(avg_loss)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    @method()
+    def entropies(self, sequence: str, batch_size: int = 32) -> list[float]:
+        """
+        Calculate the entropy for each residue position in a protein sequence by masking each residue and calculating the entropy of the masked position.
+        """
+        import torch
+        tokenized = self.tokenizer.encode(sequence, return_tensors='pt')
+        repeat_input = tokenized.repeat(tokenized.size(-1)-2, 1)
+
+        # mask one by one except [CLS] and [SEP]
+        mask = torch.ones(tokenized.size(-1) - 1).diag(1)[:-2]
+        masked_input = repeat_input.masked_fill(
+            mask == 1, self.tokenizer.mask_token_id)
+
+        labels = repeat_input.masked_fill(
+            masked_input != self.tokenizer.mask_token_id, -100)
+
+        # Initialize entropy list with zeros for each position in the sequence
+        # Subtract 2 for [CLS] and [SEP] tokens
+        entropies = [0.0] * len(sequence)
+        distributions = [torch.zeros(
+            self.model.config.vocab_size)] * len(sequence)
+        # Process in batches
+        for i in range(0, masked_input.size(0), batch_size):
+            batch_masked_input = masked_input[i:i+batch_size].to(self.device)
+            batch_labels = labels[i:i+batch_size].to(self.device)
+
+            with torch.inference_mode():
+                outputs = self.model(batch_masked_input, labels=batch_labels)
+                logits = outputs.logits
+                probabilities = torch.softmax(logits, dim=-1)
+                log_probabilities = torch.log(probabilities)
+                batch_entropy = - \
+                    torch.sum(probabilities * log_probabilities, dim=-1)
+                # Round to 4 decimal places
+                batch_entropy = torch.round(batch_entropy, decimals=4)
+                probabilities = torch.round(probabilities, decimals=4)
+                # check that probabilities sum to 1 roughly
+
+                # Update the corresponding positions in the entropies list
+                for j, entropy_value in enumerate(batch_entropy.cpu().tolist()):
+                    position = i+j
+                    entropies[position] = entropy_value[position+1]
+                    prob_distribution = probabilities[j,
+                                                      position + 1].cpu().numpy()
+                    distributions[position] = {
+                        self.tokenizer.decode([token_id]): prob
+                        for token_id, prob in enumerate(prob_distribution)
+                        if self.tokenizer.decode([token_id]).isalpha() and len(self.tokenizer.decode([token_id])) == 1
+                    }
+
+        return entropies, distributions
+
+    @modal.exit()
+    def empty_cache(self):
         import torch
         torch.cuda.empty_cache()
 
@@ -221,3 +286,53 @@ def predict_structures_from_fasta(fasta_file: str, output_dir: str, batch_size: 
         io = PDBIO()
         io.set_structure(struct)
         io.save(f"{output_dir}/{struct.id}.pdb")
+
+
+@stub.local_entrypoint()
+def predict_structures_from_csv(csv_file: str, id_column: str, sequence_column: str, output_dir: str, batch_size: int = 1):
+    """
+    Predicts protein structures from a given CSV file and saves them as PDB files in the specified output directory.
+
+    Args:
+        csv_file (str): Path to the CSV file containing protein sequences with their IDs.
+        id_column (str): The name of the column in the CSV file that contains the sequence IDs.
+        sequence_column (str): The name of the column in the CSV file that contains the protein sequences.
+        output_dir (str): Directory where the PDB files will be saved.
+        batch_size (int): Number of sequences to process in a batch. Default is 1 due to high memory usage of the model.
+                            For shorter sequences, the batch size can be increased.
+    """
+    import pandas as pd
+    df = pd.read_csv(csv_file)
+    if id_column not in df.columns or sequence_column not in df.columns:
+        raise ValueError(
+            f"CSV file must contain '{id_column}' and '{sequence_column}' columns.")
+
+    sequences = []
+    for _, row in df.iterrows():
+        sequences.append(
+            SeqRecord(Seq(row[sequence_column]), id=str(row[id_column])))
+
+    result = predict_structures.remote(
+        sequences, batch_size=batch_size)
+    os.makedirs(output_dir, exist_ok=True)
+    for struct in result:
+        io = PDBIO()
+        io.set_structure(struct)
+        io.save(f"{output_dir}/{struct.id}.pdb")
+
+
+@stub.local_entrypoint()
+def calculate_entropy(sequence: str, model_name: str = "facebook/esm2_t36_3B_UR50D") -> list[float]:
+    """
+    Calculate the entropy for each residue position in a protein sequence.
+
+    Args:
+        sequence (str): A single protein sequence.
+        model_name (str): Name of the model to use for entropy calculation. Default is 'facebook/esm2_t36_3B_UR50D'.
+
+    Returns:
+        list[float]: A list of entropy values for each residue position in the sequence.
+    """
+    model = EsmModel(model_name=model_name)
+    entropy = model.get_entropy.remote(sequence)
+    return entropy.tolist()

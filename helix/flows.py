@@ -100,6 +100,58 @@ def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
     return attentions
 
 
+@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image, timeout=4000)
+def get_entropies(sequence, model_name: str = "facebook/esm2_t36_3B_UR50D"):
+    model = EsmForMaskedLM(model_name=model_name)
+    return model.entropies.remote(sequence, batch_size=10)
+
+
+@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image, timeout=4000)
+def get_positional_entropies(sequence: str, model_name: str = "facebook/esm2_t36_3B_UR50D"):
+    """
+    Select residues for mutation based on entropy values that are a certain number of
+    standard deviations above the mean entropy and return a dataframe with residue position,
+    entropy and distributions with amino acids as columns, sorted by entropy in descending order.
+
+    Args:
+        sequence (str): The protein sequence.
+        model (EsmModel): The model used to calculate entropies.
+        std_dev_factor (float): The number of standard deviations above the mean to use as a threshold.
+
+    Returns:
+        pd.DataFrame: A dataframe with columns ['Position', 'Entropy'] and one column for each amino acid representing its distribution, sorted by 'Entropy'.
+    """
+    import pandas as pd
+    model = EsmForMaskedLM(model_name=model_name)
+    # Calculate entropies for each residue position
+    entropies, distributions = model.entropies.remote(sequence, batch_size=10)
+
+    # Initialize a list to hold the data
+    data = []
+
+    # Populate the list with residue position, entropy, distribution data, and the 3 most probable mutations in standard notation
+    for i, (entropy, distribution) in enumerate(zip(entropies, distributions)):
+        # Sort the distribution by probability in descending order and take the top 3
+        top_mutations = sorted(distribution.items(),
+                               key=lambda item: item[1], reverse=True)[:3]
+
+        mutations_str = ', '.join(
+            [f"{sequence[i]}{i + 1}{mut[0]}({mut[1]:.4f})" for mut in top_mutations])
+        row = {'Position': i + 1, 'Entropy': entropy,
+               'Top Mutations': mutations_str}
+        row.update(distribution)
+        data.append(row)
+
+    # Create a dataframe from the list and sort it by entropy in descending order
+    df = pd.DataFrame(data).sort_values('Entropy', ascending=False)
+    return df
+
+# Usage example:
+# model = EsmModel(...)  # Initialize your model
+# sequence = "..."  # Your protein sequence
+# mutable_residues = select_mutable_residues(sequence, model, std_dev_factor=1.0)
+
+
 @stub.local_entrypoint()
 def pca_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32, n_components: int = 2, output_dir: str = None):
     sequences = list(SeqIO.parse(fasta_file, "fasta"))
@@ -130,3 +182,9 @@ def get_embeddings_from_fasta(fasta_file: str, model_name: str = "facebook/esm2_
     embeddings = get_embeddings.remote(sequences, model_name, batch_size)
     print(embeddings)
     return embeddings
+
+
+@stub.local_entrypoint()
+def get_entropies_from_sequence(sequence: str, model_name: str = "facebook/esm2_t36_3B_UR50D", filename: str = "positional_entropies.csv"):
+    df = get_positional_entropies.remote(sequence, model_name)
+    df.to_csv(filename, index=False)
