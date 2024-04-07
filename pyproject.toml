@@ -19,6 +19,7 @@ matplotlib = "^3.8.0"
 evo-prot-grad = "^0.1.4"
 pandas = "^2.1.4"
 litellm = "^1.18.1"
+openpyxl = "^3.1.2"
 
 
 [tool.poetry.group.dev.dependencies]
