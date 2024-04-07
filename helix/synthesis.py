@@ -1,5 +1,6 @@
 
 
+import pandas as pd
 from dnachisel import AvoidPattern, DnaOptimizationProblem, CodonOptimize, EnforceTranslation, reverse_translate
 from .main import stub
 from modal import Image
@@ -49,47 +50,130 @@ def codon_optimize(sequence: SeqRecord, organism="e_coli", avoid_patterns=[], gc
     return problem.record
 
 
-@stub.function(image=image)
-def create_kdg_primers(plasmid_sequence: str, gene_location: tuple, mutations: list):
-    import pandas as pd
-    from primers import create
-    from biotite.sequence import CodonTable
+CODON_LENGTH = 3
+
+
+def parse_mutation(mutation_str):
+    """
+    Parse a mutation string like "S2M" into its components: original amino acid,
+    position, and new amino acid.
+
+    Parameters
+    ----------
+    mutation_str : str
+        The mutation string to parse.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the original amino acid, the position, and the new amino acid.
+    """
+    if len(mutation_str) < 3:
+        raise ValueError("Mutation string is too short to be valid.")
+
+    original_aa = mutation_str[0]
+    new_aa = mutation_str[-1]
+
+    # Extract the position, which should be the substring between the two amino acids
+    position_str = mutation_str[1:-1]
+
+    # Check if the position is a valid integer
+    if not position_str.isdigit():
+        raise ValueError("Position in mutation string is not a valid integer.")
+
+    position = int(position_str)
+
+    return original_aa, position, new_aa
+
+
+def mutate_sequence(plasmid_sequence, gene_start, mutation):
+    from biotite.sequence import CodonTable, NucleotideSequence
+    """Apply a mutation to the plasmid sequence at the specified gene start."""
     table = CodonTable.default_table()
+    mut_from, mutation_position, mut_to = parse_mutation(mutation)
+    # Check if the amino acid at the mutation position matches mut_from
+    codon_start = gene_start + (mutation_position - 1) * CODON_LENGTH
+    codon = NucleotideSequence(
+        plasmid_sequence[codon_start:codon_start + CODON_LENGTH])
+    amino_acid = codon.translate(complete=True)[0]
+    if amino_acid != mut_from:
+        raise ValueError(
+            f"The amino acid at position {mutation_position} is {amino_acid}, not {mut_from}.")
+    # Assuming mutation format is 'A123T'
+    mutation_position = int(mutation[1:-1])
+    mutated_codon = str(table[mut_to][0])
+    position_in_plasmid = gene_start + (mutation_position - 1) * CODON_LENGTH
+    return (plasmid_sequence[:position_in_plasmid] + mutated_codon +
+            plasmid_sequence[position_in_plasmid + CODON_LENGTH:])
 
-    # Initialize an empty list to store primer data
+
+def circularize_sequence(sequence, cut_position):
+    """Circularize the sequence by making the cut_position the new start."""
+    return sequence[cut_position:] + sequence[:cut_position]
+
+
+def create_primer_data(mutated_sequence, gene_start, mutation, optimal_len=None, penalty_len=None):
+    """Create primers for the mutated sequence."""
+    from primers import create
+    _, mutation_position, _ = parse_mutation(mutation)
+    circular_plasmid_sequence = circularize_sequence(
+        mutated_sequence, gene_start + (mutation_position - 1) * CODON_LENGTH
+    )
+    fwd, rev = create(circular_plasmid_sequence,
+                      optimal_len=optimal_len, penalty_len=penalty_len)
+    return {
+        'mutation': mutation,
+        'fwd': fwd.seq,
+        'rev': rev.seq,
+        'fwd_tm': fwd.tm,
+        'rev_tm': rev.tm,
+        'fwd_gc': fwd.gc,
+        'rev_gc': rev.gc,
+        'fwd_length': len(fwd.seq),
+        'rev_length': len(rev.seq)
+    }
+
+
+@stub.function(image=image)
+def create_kdg_primers(plasmid_sequence, gene_start, mutations, optimal_len=24, penalty_len=1):
+    """
+    Create primers for a list of mutations in a plasmid sequence.
+
+    Parameters
+    ----------
+    plasmid_sequence : str
+        The plasmid sequence to create primers for.
+    gene_start : int
+        The start position of the gene in the plasmid sequence starting from 1. Corresponds to position in Benchling.
+    mutations : list
+        A list of mutations in the form "A123T" where A is the wildtype amino acid,
+        123 is the position, and T is the mutant amino acid.
+    optimal_len : int, optional
+        The optimal length of the primers to design. Default is 24.
+    penalty_len : int, optional
+        The penalty length for the primers. Default is 1.
+
+    Returns
+    -------
+    DataFrame
+        A DataFrame containing primer data for each mutation.
+    """
     primer_data = []
-
+    gene_start = gene_start - 1  # Convert to 0-based index
     for mutation in mutations:
-        mutation_position = int(mutation[1:-1])
-        plasmid_sequence[gene_location[0] + mutation_position *
-                         3 - 3:gene_location[0] + mutation_position * 3]
-        mutated_codon = str(table[mutation[-1]][0])
-        mutated_sequence = plasmid_sequence[:gene_location[0] + mutation_position * 3 -
-                                            3] + mutated_codon + plasmid_sequence[gene_location[0] + mutation_position * 3:]
+        try:
+            mutated_sequence = mutate_sequence(
+                plasmid_sequence.upper(), gene_start, mutation)
+            int(mutation[1:-1])
+            primer_info = create_primer_data(
+                mutated_sequence, gene_start, mutation)
+            primer_data.append(primer_info)
+        except Exception as e:
+            # Log the error or handle it as appropriate
+            print(f"Error processing mutation {mutation}: {e}")
+            continue
 
-        # Circularize so that mutated codon is first in the sequence
-        circular_plasmid_sequence = mutated_sequence[gene_location[0] + mutation_position *
-                                                     3 - 3:] + mutated_sequence[:gene_location[0] + mutation_position * 3 - 3]
-
-        # Create primers
-        fwd, rev = create(circular_plasmid_sequence)
-
-        # Append primer data to the list
-        primer_data.append({
-            'mutation': mutation,
-            'fwd': fwd.seq,
-            'rev': rev.seq,
-            'fwd_tm': fwd.tm,
-            'rev_tm': rev.tm,
-            'fwd_gc': fwd.gc,
-            'rev_gc': rev.gc,
-            'fwd_length': len(fwd.seq),
-            'rev_length': len(rev.seq)
-        })
-
-    # Create a DataFrame from the list of primer data
-    df = pd.DataFrame(primer_data)
-    return df
+    return pd.DataFrame(primer_data)
 
 
 @stub.local_entrypoint()
@@ -112,7 +196,7 @@ def codon_optimize_from_fasta(fasta_file: str, output_path, organism: str = "e_c
 
 
 @stub.local_entrypoint()
-def create_kdg_primers_to_csv(plasmid_sequence: str, gene_location: tuple, mutations: list, output_path: str):
+def create_kdg_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations: str, output_path: str):
     """
     Create primers for a list of mutations in a plasmid sequence.
     Parameters
@@ -120,11 +204,16 @@ def create_kdg_primers_to_csv(plasmid_sequence: str, gene_location: tuple, mutat
     plasmid_sequence : str
         The plasmid sequence to create primers for.
     gene_location : tuple
-        The start and end positions of the gene in the plasmid sequence starting from 1.
+        The start position of the gene in the plasmid sequence starting from 0.
     mutations : list
         A list of mutations in the form "A123T" where A is the wildtype amino acid, 123 is the position, and T is the mutant amino acid.
     output_path : str
         The path to save the primers to.
     """
-    df = create_kdg_primers(plasmid_sequence, gene_location, mutations)
+
+    # Parse the mutations string into a list of mutations
+    # If there's only one mutation, it won't have a comma, so we split by comma only if it's present
+    mutations = mutations.split(",") if "," in mutations else [mutations]
+    df = create_kdg_primers.remote(
+        plasmid_sequence, gene_start, mutations)
     df.to_csv(output_path)
