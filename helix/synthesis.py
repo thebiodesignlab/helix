@@ -8,7 +8,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 from Bio.Seq import Seq
 image = Image.debian_slim().pip_install(
-    "dnachisel", "biopython", "biotite", "pandas", "primers")
+    "dnachisel", "biopython", "biotite", "pandas", "primers", "openpyxl")
 
 
 @stub.function(image=image)
@@ -112,7 +112,7 @@ def circularize_sequence(sequence, cut_position):
     return sequence[cut_position:] + sequence[:cut_position]
 
 
-def create_primer_data(mutated_sequence, gene_start, mutation, optimal_len=None, penalty_len=None):
+def create_primer_data(mutated_sequence, gene_start, mutation, optimal_len, penalty_len):
     """Create primers for the mutated sequence."""
     from primers import create
     _, mutation_position, _ = parse_mutation(mutation)
@@ -135,9 +135,9 @@ def create_primer_data(mutated_sequence, gene_start, mutation, optimal_len=None,
 
 
 @stub.function(image=image)
-def create_kdg_primers(plasmid_sequence, gene_start, mutations, optimal_len=24, penalty_len=1):
+def create_kld_primers(plasmid_sequence, gene_start, mutations, optimal_len=24, penalty_len=5):
     """
-    Create primers for a list of mutations in a plasmid sequence.
+    Create primers for a list of point mutations in a plasmid sequence to be used in KLD Site-Directed Mutagenesis.
 
     Parameters
     ----------
@@ -166,7 +166,7 @@ def create_kdg_primers(plasmid_sequence, gene_start, mutations, optimal_len=24, 
                 plasmid_sequence.upper(), gene_start, mutation)
             int(mutation[1:-1])
             primer_info = create_primer_data(
-                mutated_sequence, gene_start, mutation)
+                mutated_sequence, gene_start, mutation, optimal_len, penalty_len)
             primer_data.append(primer_info)
         except Exception as e:
             # Log the error or handle it as appropriate
@@ -196,9 +196,9 @@ def codon_optimize_from_fasta(fasta_file: str, output_path, organism: str = "e_c
 
 
 @stub.local_entrypoint()
-def create_kdg_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations: str, output_path: str):
+def create_kld_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations: str, output_path: str, plate_output_path: str):
     """
-    Create primers for a list of mutations in a plasmid sequence.
+    Create primers for a list of point mutations in a plasmid sequence 
     Parameters
     ----------
     plasmid_sequence : str
@@ -214,6 +214,43 @@ def create_kdg_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations:
     # Parse the mutations string into a list of mutations
     # If there's only one mutation, it won't have a comma, so we split by comma only if it's present
     mutations = mutations.split(",") if "," in mutations else [mutations]
-    df = create_kdg_primers.remote(
+    df = create_kld_primers.remote(
         plasmid_sequence, gene_start, mutations)
     df.to_csv(output_path)
+    if plate_output_path:
+        create_primer_well_df(df).to_excel(plate_output_path, index=False)
+
+
+def create_primer_well_df(primer_df: pd.DataFrame):
+    """
+    Create a df mapping forward and reverse primers to the same well positions in a 96-well plate.
+    Parameters
+    ----------
+    primer_df : pd.DataFrame
+        The DataFrame containing primer information.
+    output_path : str
+        The path to save the well-position CSV to.
+    """
+    # Define well positions
+    rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    cols = list(range(1, 13))
+    well_positions = [f"{row}{col}" for row in rows for col in cols]
+
+    # Iterate over the primer DataFrame and assign well positions
+    well_data = []
+    for idx, primer in enumerate(primer_df.itertuples(index=False)):
+        # Same well for forward and reverse
+        well_position = well_positions[idx]
+        # Add forward primer to the well
+        well_data.append({
+            'Well Position': well_position,
+            'Sequence Name': f"{primer.mutation}_fwd",
+            'Sequence': primer.fwd
+        })
+        # Add reverse primer to the well
+        well_data.append({
+            'Well Position': well_position,
+            'Sequence Name': f"{primer.mutation}_rev",
+            'Sequence': primer.rev
+        })
+    return pd.DataFrame(well_data)
