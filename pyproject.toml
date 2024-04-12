@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "helixbio"
-version = "0.1.8"
+version = "0.1.9"
 description = ""
 authors = ["Ragnor Comerford <hello@ragnor.co>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.10"
 biopython = "^1.81"
-modal = "^0.59.6"
+modal = "^0.62.43"
 dnachisel = "^3.2.11"
 torch = "^2.0.1"
 transformers = "^4.30.0"
