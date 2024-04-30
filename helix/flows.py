@@ -3,13 +3,13 @@ import os
 
 import numpy as np
 from .esm import EsmModel, EsmForMaskedLM, image as esm_image
-from .main import CACHE_DIR, stub, volume
+from .main import stub
 from Bio import SeqIO
 
 from .utils import create_batches
 
 
-@stub.function(network_file_systems={CACHE_DIR: volume}, image=esm_image)
+@stub.function(image=esm_image)
 def perform_pca_on_embeddings(embeddings_dict, n_components: int = 2):
     import io
     import matplotlib.pyplot as plt
@@ -40,7 +40,7 @@ def perform_pca_on_embeddings(embeddings_dict, n_components: int = 2):
     return img
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image)
+@stub.function(gpu='any', image=esm_image)
 def get_embeddings(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
     model = EsmModel(model_name=model_name)
     embeddings = {}
@@ -59,7 +59,7 @@ def get_embeddings(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
     return embeddings  # Return a dictionary of embeddings
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image)
+@stub.function(gpu='any', image=esm_image)
 def get_scores(sequences, model_name: str = "facebook/esm2_t33_650M_UR50D", batch_size: int = 32):
     model = EsmForMaskedLM(model_name=model_name)
     perplexities = {}
@@ -75,7 +75,7 @@ def get_scores(sequences, model_name: str = "facebook/esm2_t33_650M_UR50D", batc
     return perplexities  # Return a dictionary of perplexities
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image)
+@stub.function(gpu='any', image=esm_image)
 def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", batch_size: int = 32):
 
     model = EsmModel(model_name=model_name)
@@ -100,13 +100,13 @@ def get_attentions(sequences, model_name: str = "facebook/esm2_t36_3B_UR50D", ba
     return attentions
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image, timeout=4000)
+@stub.function(gpu='any', image=esm_image, timeout=4000)
 def get_entropies(sequence, model_name: str = "facebook/esm2_t36_3B_UR50D"):
     model = EsmForMaskedLM(model_name=model_name)
     return model.entropies.remote(sequence, batch_size=10)
 
 
-@stub.function(gpu='any', network_file_systems={CACHE_DIR: volume}, image=esm_image, timeout=4000)
+@stub.function(gpu='any', image=esm_image, timeout=4000)
 def get_positional_entropies(sequence: str, model_name: str = "facebook/esm2_t36_3B_UR50D"):
     """
     Select residues for mutation based on entropy values that are a certain number of
@@ -138,6 +138,8 @@ def get_positional_entropies(sequence: str, model_name: str = "facebook/esm2_t36
         mutations_str = ', '.join(
             [f"{sequence[i]}{i + 1}{mut[0]}({mut[1]:.4f})" for mut in top_mutations])
         row = {'Position': i + 1, 'Entropy': entropy,
+               # Add the original residue in a separate column
+               'Original Residue': sequence[i],
                'Top Mutations': mutations_str}
         row.update(distribution)
         data.append(row)

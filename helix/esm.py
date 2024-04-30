@@ -1,6 +1,6 @@
 from io import StringIO
-from modal import Image, method
-from .main import CACHE_DIR, volume, stub
+from modal import Image, method, gpu
+from .main import stub
 import modal
 from Bio.PDB.Structure import Structure
 from Bio import SeqIO
@@ -9,7 +9,6 @@ from Bio.SeqRecord import SeqRecord
 from Bio.PDB.PDBIO import PDBIO
 import os
 import transformers
-
 
 def download_models():
     from transformers import EsmModel, EsmForProteinFolding, AutoTokenizer
@@ -24,6 +23,11 @@ def download_models():
     AutoTokenizer.from_pretrained(
         "facebook/esm2_t36_3B_UR50D")
 
+    EsmModel.from_pretrained(
+        "facebook/esm2_t48_15B_UR50D")
+    AutoTokenizer.from_pretrained(
+        "facebook/esm2_t48_15B_UR50D")
+
 
 image = Image.debian_slim().apt_install("git").pip_install(
     "torch",
@@ -34,7 +38,7 @@ image = Image.debian_slim().apt_install("git").pip_install(
 ).run_function(download_models)
 
 
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
+@stub.cls(gpu=gpu.A10G(), timeout=2000,  image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EsmModel():
     def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
         import transformers
@@ -66,9 +70,19 @@ class EsmModel():
         torch.cuda.empty_cache()
 
 
-@stub.cls(gpu='A10G', timeout=2000, network_file_systems={CACHE_DIR: volume}, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
+@stub.cls(gpu=gpu.A100(memory=80), timeout=2000,  image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EsmForMaskedLM():
-    def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
+    def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D", peft_path: str = None):
+        # import transformers
+        # from peft import PeftModel
+        # self.tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+        # if peft_path:
+        #     basemodel = transformers.AutoModelForMaskedLM.from_pretrained(
+        #         model_name)
+        #     self.model = PeftModel.from_pretrained(basemodel, peft_path)
+        # else:
+        #     self.model = transformers.AutoModelForMaskedLM.from_pretrained(
+        #         model_name)
         import transformers
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             model_name)
@@ -182,7 +196,7 @@ class EsmForMaskedLM():
         torch.cuda.empty_cache()
 
 
-@stub.cls(gpu="A10G", timeout=6000, network_file_systems={CACHE_DIR: volume}, image=image)
+@stub.cls(gpu="A10G", timeout=6000,  image=image)
 class ESMFold():
     def __init__(self, device: str = "cuda"):
         from transformers import AutoTokenizer, EsmForProteinFolding
@@ -246,7 +260,7 @@ PROTEIN_STRUCTURE_MODELS = {
 }
 
 
-@stub.function(network_file_systems={CACHE_DIR: volume}, image=image, timeout=10000)
+@stub.function(image=image, timeout=10000)
 def predict_structures(sequences, model_name: str = "esmfold", batch_size: int = 1):
     from helix.utils import create_batches
     if model_name not in PROTEIN_STRUCTURE_MODELS:
