@@ -1,0 +1,16 @@
+model: ESM-1b
+shot: 250
+batch_size: 5
+max_epochs: 25
+ini_lr: 5e-4
+min_lr: 1e-4
+endure_time: 5
+lambda_reg: 0.1
+lora_r: 8
+lora_alpha: 8
+lora_dropout: 0.1
+num_processes: 2
+gpu_number: 2
+dataset: GB1_Olson2014_ddg
+sample_seed: 0
+model_seed: 1
