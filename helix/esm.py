@@ -10,6 +10,7 @@ from Bio.PDB.PDBIO import PDBIO
 import os
 import transformers
 
+
 def download_models():
     from transformers import EsmModel, EsmForProteinFolding, AutoTokenizer
 
@@ -52,7 +53,7 @@ class EsmModel():
         self.model.eval()
 
     @method()
-    def infer(self, sequences, output_hidden_states: bool = False, output_attentions: bool = False, return_logits: bool = False) -> transformers.modeling_outputs.BaseModelOutputWithPoolingAndCrossAttentions:
+    def infer(self, sequences, output_hidden_states: bool = False, output_attentions: bool = False) -> transformers.modeling_outputs.BaseModelOutputWithPoolingAndCrossAttentions:
         import torch
         if not torch.cuda.is_available():
             raise Exception("CUDA is not available")
@@ -94,9 +95,9 @@ class EsmForMaskedLM():
         self.model.eval()
 
     @method()
-    def infer(self, sequence: str) -> transformers.modeling_outputs.MaskedLMOutput:
+    def infer(self, sequences) -> transformers.modeling_outputs.MaskedLMOutput:
         import torch
-        tokenized = self.tokenizer.encode(sequence, return_tensors='pt')
+        tokenized = self.tokenizer.encode(sequences, return_tensors='pt')
         tokenized = tokenized.to(self.device)
         with torch.inference_mode():
             outputs = self.model(tokenized, return_dict=True)

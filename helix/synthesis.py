@@ -196,19 +196,23 @@ def codon_optimize_from_fasta(fasta_file: str, output_path, organism: str = "e_c
 
 
 @stub.local_entrypoint()
-def create_kld_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations: str, output_path: str, plate_output_path: str):
+def create_kld_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations: str, output_path: str, plate_output_path: str, start_well: str = 'A1'):
     """
     Create primers for a list of point mutations in a plasmid sequence 
     Parameters
     ----------
     plasmid_sequence : str
         The plasmid sequence to create primers for.
-    gene_location : tuple
+    gene_start : int
         The start position of the gene in the plasmid sequence starting from 0.
     mutations : list
         A list of mutations in the form "A123T" where A is the wildtype amino acid, 123 is the position, and T is the mutant amino acid.
     output_path : str
         The path to save the primers to.
+    plate_output_path : str
+        The path to save the plate layout to.
+    start_well : str, optional
+        The starting well position in the plate (e.g., 'A1'). Default is 'A1'.
     """
 
     # Parse the mutations string into a list of mutations
@@ -218,27 +222,42 @@ def create_kld_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations:
         plasmid_sequence, gene_start, mutations)
     df.to_csv(output_path)
     if plate_output_path:
-        create_primer_well_df(df).to_excel(plate_output_path, index=False)
+        create_primer_well_df(df, start_well=start_well).to_excel(
+            plate_output_path, index=False)
 
 
-def create_primer_well_df(primer_df: pd.DataFrame):
+def create_primer_well_df(primer_df: pd.DataFrame, start_well: str = 'A1'):
     """
     Create a df mapping forward and reverse primers to the same well positions in a 96-well plate.
     Parameters
     ----------
     primer_df : pd.DataFrame
         The DataFrame containing primer information.
-    output_path : str
-        The path to save the well-position CSV to.
+    start_well : str
+        The well position to start assigning primers from.
     """
     # Define well positions
     rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     cols = list(range(1, 13))
-    well_positions = [f"{row}{col}" for row in rows for col in cols]
+    all_well_positions = [f"{row}{col}" for row in rows for col in cols]
+
+    # Find the index of the starting well
+    try:
+        start_index = all_well_positions.index(start_well)
+    except ValueError:
+        raise ValueError(
+            f"Invalid start well: {start_well}. Must be in the format 'A1', 'B2', etc.")
+
+    # Slice the well positions to start from the specified well
+    well_positions = all_well_positions[start_index:]
 
     # Iterate over the primer DataFrame and assign well positions
     well_data = []
     for idx, primer in enumerate(primer_df.itertuples(index=False)):
+        # Check if we have enough wells left
+        if idx >= len(well_positions):
+            raise ValueError(
+                "Not enough wells available to place all primers.")
         # Same well for forward and reverse
         well_position = well_positions[idx]
         # Add forward primer to the well

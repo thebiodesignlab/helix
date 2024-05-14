@@ -1,6 +1,6 @@
 import pathlib
 from fastapi import FastAPI
-from modal import Image, Stub, Volume, Mount
+from modal import Image, Stub, Volume
 
 MOUNT_PATH = pathlib.Path("/mnt")
 PROTEIN_DBS_PATH = MOUNT_PATH / "protein_dbs"
@@ -11,7 +11,7 @@ VOLUME_CONFIG = {
 
 
 web_app = FastAPI()
-stub = Stub(name="helix", mounts=[Mount.from_local_python_packages("helix")])
+stub = Stub(name="helix")
 image = Image.debian_slim()
 
 

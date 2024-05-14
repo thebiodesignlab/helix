@@ -199,23 +199,6 @@ test = ["anyio[trio]", "coverage[toml] (>=7)", "hypothesis (>=4.0)", "psutil (>=
 trio = ["trio (>=0.22)"]
 
 [[package]]
-name = "asgiref"
-version = "3.7.2"
-description = "ASGI specs, helper code, and adapters"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "asgiref-3.7.2-py3-none-any.whl", hash = "sha256:89b2ef2247e3b562a16eef663bc0e2e703ec6468e2fa8a5cd61cd449786d4f6e"},
-    {file = "asgiref-3.7.2.tar.gz", hash = "sha256:9e0ce3aa93a819ba5b45120216b23878cf6e8525eb3848653452b4192b92afed"},
-]
-
-[package.dependencies]
-typing-extensions = {version = ">=4", markers = "python_version < \"3.11\""}
-
-[package.extras]
-tests = ["mypy (>=0.800)", "pytest", "pytest-asyncio"]
-
-[[package]]
 name = "async-timeout"
 version = "4.0.3"
 description = "Timeout context manager for asyncio programs"
@@ -392,28 +375,6 @@ files = [
 
 [package.dependencies]
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
-
-[[package]]
-name = "cloudpickle"
-version = "2.0.0"
-description = "Extended pickling support for Python objects"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "cloudpickle-2.0.0-py3-none-any.whl", hash = "sha256:6b2df9741d06f43839a3275c4e6632f7df6487a1f181f5f46a052d3c917c3d11"},
-    {file = "cloudpickle-2.0.0.tar.gz", hash = "sha256:5cd02f3b417a783ba84a4ec3e290ff7929009fe51f6405423cfccfadd43ba4a4"},
-]
-
-[[package]]
-name = "cloudpickle"
-version = "2.2.1"
-description = "Extended pickling support for Python objects"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "cloudpickle-2.2.1-py3-none-any.whl", hash = "sha256:61f594d1f4c295fa5cd9014ceb3a1fc4a70b0de1164b94fbc2d854ccba056f9f"},
-    {file = "cloudpickle-2.2.1.tar.gz", hash = "sha256:d89684b8de9e34a2a43b3460fbca07d09d6e25ce858df4d5a44240403b6178f5"},
-]
 
 [[package]]
 name = "colorama"
@@ -1298,32 +1259,26 @@ files = [
 
 [[package]]
 name = "modal"
-version = "0.59.6"
+version = "0.62.112"
 description = "Python client library for Modal"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "modal-0.59.6-py3-none-any.whl", hash = "sha256:9b5e467d98d5175d9d20db9cd26f99d298b424572b802c4148d9e8de1f572a76"},
+    {file = "modal-0.62.112-py3-none-any.whl", hash = "sha256:3bcb1421b819bd8ce580a2dc168d3aa6764371a8959186f2b2f374837c6d7cee"},
 ]
 
 [package.dependencies]
 aiohttp = "*"
 aiostream = ">=0.5.2,<0.6.0"
-asgiref = "*"
 certifi = "*"
 click = ">=8.1.0"
-cloudpickle = [
-    {version = ">=2.0.0,<2.1.0", markers = "python_version < \"3.11\""},
-    {version = ">=2.2.0,<2.3.0", markers = "python_version >= \"3.11\""},
-]
 fastapi = "*"
 grpclib = "0.4.7"
-protobuf = ">=3.19,<4.24.0 || >4.24.0,<5.0"
+protobuf = ">=3.19,<4.24.0 || >4.24.0,<6.0"
 rich = ">=12.0.0"
-synchronicity = ">=0.6.2,<0.7.0"
-tblib = ">=1.7.0"
+synchronicity = ">=0.6.6,<0.7.0"
 toml = "*"
-typer = ">=0.9.0,<0.10.0"
+typer = ">=0.9"
 types-certifi = "*"
 types-toml = "*"
 typing-extensions = ">=4.6,<5.0"
@@ -2366,28 +2321,17 @@ mpmath = ">=0.19"
 
 [[package]]
 name = "synchronicity"
-version = "0.6.2"
+version = "0.6.6"
 description = "Export blocking and async library versions from a single async implementation"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "synchronicity-0.6.2-py3-none-any.whl", hash = "sha256:7b59fc367fd6235573e5b488537b6f90967a00422cfdf9c57438809211973863"},
+    {file = "synchronicity-0.6.6-py3-none-any.whl", hash = "sha256:72e429b26c002e77916b3d839689a0db2c006de1742e5629e4c4eae000cae8a7"},
 ]
 
 [package.dependencies]
 sigtools = "4.0.1"
 typing-extensions = ">=4.6"
-
-[[package]]
-name = "tblib"
-version = "2.0.0"
-description = "Traceback serialization library."
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "tblib-2.0.0-py3-none-any.whl", hash = "sha256:9100bfa016b047d5b980d66e7efed952fbd20bd85b56110aaf473cb97d18709a"},
-    {file = "tblib-2.0.0.tar.gz", hash = "sha256:a6df30f272c08bf8be66e0775fad862005d950a6b8449b94f7c788731d70ecd7"},
-]
 
 [[package]]
 name = "tiktoken"
@@ -2868,4 +2812,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "c18dd8f3119037ff31192816052eeeaca257c013f41b71839c07ee455df0166f"
+content-hash = "1c1eb710cf597d101d6e4cb8b19c26c7f9d53c18b215ae9cf0125fb491ffcc85"

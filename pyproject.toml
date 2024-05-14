@@ -11,7 +11,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.10"
 biopython = "^1.81"
-modal = "^0.62.43"
+modal = "^0.62.112"
 dnachisel = "^3.2.11"
 torch = "^2.0.1"
 transformers = "^4.30.0"
