@@ -1259,12 +1259,12 @@ files = [
 
 [[package]]
 name = "modal"
-version = "0.62.112"
+version = "0.62.173"
 description = "Python client library for Modal"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "modal-0.62.112-py3-none-any.whl", hash = "sha256:3bcb1421b819bd8ce580a2dc168d3aa6764371a8959186f2b2f374837c6d7cee"},
+    {file = "modal-0.62.173-py3-none-any.whl", hash = "sha256:8bba95184e1590176cafc38c2a4d5e3a4898191293a083fdc09e0e82164b9416"},
 ]
 
 [package.dependencies]
@@ -1274,7 +1274,7 @@ certifi = "*"
 click = ">=8.1.0"
 fastapi = "*"
 grpclib = "0.4.7"
-protobuf = ">=3.19,<4.24.0 || >4.24.0,<6.0"
+protobuf = ">=3.19,<4.24.0 || >4.24.0,<5.0"
 rich = ">=12.0.0"
 synchronicity = ">=0.6.6,<0.7.0"
 toml = "*"
