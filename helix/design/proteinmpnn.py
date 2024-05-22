@@ -290,7 +290,7 @@ def make_tied_positions_dict(pdb_dict_list, chain_list='', position_list='', hom
 # process_json("input.json", "output.json", chain_list="A,B", position_list="1 2, 3 4", homooligomer=0)
 
 
-@app.function(image=image, gpu='A10G', volumes={RESULTS_DIR: volumes.results})
+@app.function(image=image, gpu='A10G', volumes={RESULTS_DIR: volumes.results}, _allow_background_volume_commits=True)
 def predict(job_id, args):
     set_paths()
 
