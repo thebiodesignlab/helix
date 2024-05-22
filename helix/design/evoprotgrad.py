@@ -2,7 +2,7 @@ import hashlib
 from pprint import pprint
 from modal import Image, method
 import pandas as pd
-from .main import stub
+from helix.core import app
 
 
 def download_esm_models(slugs: list[str] = ["facebook/esm1b_t33_650M_UR50S", "facebook/esm2_t33_650M_UR50D", "facebook/esm2_t36_3B_UR50D", "facebook/esm2_t48_15B_UR50D"]):
@@ -19,7 +19,7 @@ image = Image.debian_slim().pip_install(
     "pandas").run_function(download_esm_models)
 
 
-@stub.cls(gpu='A100', timeout=2000, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
+@app.cls(gpu='A100', timeout=2000, image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EvoProtGrad:
     def __init__(self, experts: list[str] = ["esm"], device: str = "cuda"):
         from evo_prot_grad import get_expert
@@ -49,7 +49,7 @@ class EvoProtGrad:
         return variants, scores
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def get_evoprotgrad_variants(sequence: str, output_csv_file: str = None, output_fasta_file: str = None, experts: str = "esm", n_steps: int = 100, num_chains: int = 20, max_mutations: int = -1, random_seed: int = None, batch_size: int = 9):
     from .evoprotgrad import EvoProtGrad
     from helix.utils import dataframe_to_fasta, count_mutations
