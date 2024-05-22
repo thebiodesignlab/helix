@@ -5,9 +5,10 @@ import tempfile
 import uuid
 from modal import Image
 import json
-
+from helix.core import app, volumes
 from helix.utils import fetch_pdb_structure
-from .main import RESULTS_DIR, stub, volume, CACHE_DIR
+
+RESULTS_DIR = "/vol/results"
 
 FILE_KEYS = [
     "pdb_path",
@@ -289,7 +290,7 @@ def make_tied_positions_dict(pdb_dict_list, chain_list='', position_list='', hom
 # process_json("input.json", "output.json", chain_list="A,B", position_list="1 2, 3 4", homooligomer=0)
 
 
-@stub.function(image=image, gpu='A10G', network_file_systems={CACHE_DIR: volume})
+@app.function(image=image, gpu='A10G', volumes={RESULTS_DIR: volumes.results})
 def predict(job_id, args):
     set_paths()
 
@@ -733,7 +734,7 @@ def predict(job_id, args):
                         f'{num_seqs} sequences of length {total_length} generated in {dt} seconds')
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def run(
     input_path: str = "",
     pdb_ids: str = "",
@@ -868,7 +869,7 @@ def run(
         f.write(args_json)
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def test_chains(input_path: str):
     pdb_list = parse_multiple_chains(input_path)
     print(make_fixed_positions_dict(pdb_list))
