@@ -1832,6 +1832,67 @@ files = [
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
+name = "pyfamsa"
+version = "0.4.0"
+description = "Cython bindings and Python interface to FAMSA, an algorithm for ultra-scale multiple sequence alignments."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pyfamsa-0.4.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:a96c4f58b4973b97fb95372bbe279b8219a41aa27605aa4733bd640b69cb8906"},
+    {file = "pyfamsa-0.4.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:02e55ed39abd7d6b96d9d10b82b04db62d205f20987e5d9f713039d0667f39b0"},
+    {file = "pyfamsa-0.4.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b2094625cefe4ee151859602f07afeafab4a8edfd22f4463ed9b0a9ef8ea910c"},
+    {file = "pyfamsa-0.4.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:73ba8ec7766a861987ac7da8a293a18091e66b965f36a34d539e4a3b103653f5"},
+    {file = "pyfamsa-0.4.0-cp310-cp310-win_amd64.whl", hash = "sha256:83db19ae3053efed0cdf506270e8e33a2c16e3cb414e63caeddb7fa75cf3ddcf"},
+    {file = "pyfamsa-0.4.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:1981eeca371af5ea2824f029f7c51760e8a0635fdba072eda31f6e1a72827990"},
+    {file = "pyfamsa-0.4.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:6f69b334d02bdd2a2b3b883252fb7ac8bd52f3b944fced02e1ec2af3892bc3af"},
+    {file = "pyfamsa-0.4.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5d8aea4a02f9942776ac3dd81544c630f5a9ae1097c354ffb0ded9861448e856"},
+    {file = "pyfamsa-0.4.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ff46534f1bd94bca64ca20ab0630f48df751f6372e12f6f53b8cf6c13deaa6d8"},
+    {file = "pyfamsa-0.4.0-cp311-cp311-win_amd64.whl", hash = "sha256:d79e62ebf2b7e219b4b9f8aa0a7543a7ab573b56afdf37ffa0d10027d181cc6a"},
+    {file = "pyfamsa-0.4.0-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:2c37ea82f06bd4119f2d16d30738385ba194b5abc4469902b82eb8bdf958e4e9"},
+    {file = "pyfamsa-0.4.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:9e3645043c12069cb76ae10bf57554a2167e6834c34a7c118010f2c9c5c37408"},
+    {file = "pyfamsa-0.4.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:de113fee6a77a3a4bcc1c88095fa478152d812e96151e71a978741615cb3f3a8"},
+    {file = "pyfamsa-0.4.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:eeafbfd0624f0010c5a069585f9670856ef7fe6518357ce77a2907a657497d1d"},
+    {file = "pyfamsa-0.4.0-cp312-cp312-win_amd64.whl", hash = "sha256:421ccbbc65f6043f79bbd2eeb82d0b8544ad70b805e61eeb59c775486eb62b8f"},
+    {file = "pyfamsa-0.4.0-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cbbc1ac4dfc85a1a9493be9c8173f6cc62ced7b64ee0e30077512d0fda40782c"},
+    {file = "pyfamsa-0.4.0-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:67b5d377356d59343ade086fb756d9ae2cc357d07a178e1a8521ad2096d7c454"},
+    {file = "pyfamsa-0.4.0-cp36-cp36m-win_amd64.whl", hash = "sha256:1f9c445d6ac55adfbe4dc5c973e2e71be31a7ce99dcb367bc963c6150e795442"},
+    {file = "pyfamsa-0.4.0-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:aa2dac3727440009044d2eede586ed0012a59fa9e17fdd7d9201d0446dccec48"},
+    {file = "pyfamsa-0.4.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:459a9e69c73c67569a2ff544b8197ffcfa7ee807a6561dcf0167ef00f45c5e66"},
+    {file = "pyfamsa-0.4.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4dd67f20eb4223176df1cc5ed89c9e3ab98f3806523001bc9e28a38b58d953c1"},
+    {file = "pyfamsa-0.4.0-cp37-cp37m-win_amd64.whl", hash = "sha256:df5f69e06ff14e3dca526642e7e913cbad87c2136c3014db56f5954a9798e8f8"},
+    {file = "pyfamsa-0.4.0-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:fc8c31df94ed73ce98e5222a18a590da6a28f1aa7dd909d09a9f1fc2b20daeb0"},
+    {file = "pyfamsa-0.4.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:1a3fc87952ebca02ba63803cd10c4ed39ebaea948942b0aedd14ee7b0367fdf3"},
+    {file = "pyfamsa-0.4.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:04e567611756457bc3f8b4761f362b745c23c5a3dbe84c4bc43f00fbaadb3ea0"},
+    {file = "pyfamsa-0.4.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7e4b69fb4e9d7d299acea4821d53ff83c540d30f24db0854151c307478381b87"},
+    {file = "pyfamsa-0.4.0-cp38-cp38-win_amd64.whl", hash = "sha256:9ecd7f64ac60eecd68e8253f08b90769701d72d929627e713456a56b929f286f"},
+    {file = "pyfamsa-0.4.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:2867dabfb5814687d3752e94b284057db80e0a25e62a0e29640290c5a1a12eba"},
+    {file = "pyfamsa-0.4.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:4221fea615eb9184db7d92e198988ee02b718d0b76888ef85f45cace033ed51c"},
+    {file = "pyfamsa-0.4.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:162f012b6d5f617ea204c6d599168edca4d72f74f4966acb555481e22b4c3e44"},
+    {file = "pyfamsa-0.4.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:eaa33271cbfc70fc2de7b167517d1d5b6560d8c2392b470f233640ccc115f1e7"},
+    {file = "pyfamsa-0.4.0-cp39-cp39-win_amd64.whl", hash = "sha256:977115ac64dd680264bbf61e725f281ef704b1519b605b4a6b53876aa97a91e3"},
+    {file = "pyfamsa-0.4.0-pp310-pypy310_pp73-macosx_10_9_x86_64.whl", hash = "sha256:92dc62ceae9c31497aeb70e0ea0402ead0688116c181df7d0f0d35b3961970d2"},
+    {file = "pyfamsa-0.4.0-pp310-pypy310_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3fe4b79d0cc2fdacf650729549ed5bdc9dc27be46e4a570a45917b8ff4b1c68e"},
+    {file = "pyfamsa-0.4.0-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:12ec3e5e53f4170e5d15c7a3f26b844a06f7dacc54deff7f890912e170b3c7ad"},
+    {file = "pyfamsa-0.4.0-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:068cb05357b1eabfb326275c1dcb00cbf213f210f4cbbd39e935e0b9af3f047d"},
+    {file = "pyfamsa-0.4.0-pp37-pypy37_pp73-macosx_10_9_x86_64.whl", hash = "sha256:e09923d2177330fcd33cc38e42f7b2520e871996c89c8f0edc8630ee88d87185"},
+    {file = "pyfamsa-0.4.0-pp37-pypy37_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:572d814cda2f55b7dc50bcba3f689018fa21170a454a6e5f37abad7ce540d540"},
+    {file = "pyfamsa-0.4.0-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:670e6250f5b3401e220dee32d2138adc9d3cf7f8cd21c2269e815ec14cdd55b6"},
+    {file = "pyfamsa-0.4.0-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:c0761fe31a17d59cba65aa1d11932587dda6e517da6426e9a404fec5fa784de9"},
+    {file = "pyfamsa-0.4.0-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:d4bac052dc78dcd91f6a88552726e6433c0f3a35f6e03995d9187b412d43e78e"},
+    {file = "pyfamsa-0.4.0-pp38-pypy38_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0888a360b44be5264f95b4b470acc16a52d0a1b519b4f3bf1518f7ae7a7f6d3f"},
+    {file = "pyfamsa-0.4.0-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c7d989af8a375c701f5b263a01c313337b6e8590c2bdd1c64a94c0b05af66698"},
+    {file = "pyfamsa-0.4.0-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:d8f22393c4c6df3a33aef97f88bf7770d7d6ff6d01e9239ec307d4176da37081"},
+    {file = "pyfamsa-0.4.0-pp39-pypy39_pp73-macosx_10_9_x86_64.whl", hash = "sha256:07489e755d5f61829e034f93fd04c10c0b4cff37ff08a97597796eaad17b646e"},
+    {file = "pyfamsa-0.4.0-pp39-pypy39_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c0c6ab7692ef356fbbe76afad05f14549a86d202c6552d49e9e15d91364396f3"},
+    {file = "pyfamsa-0.4.0-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4f31c21baa312d61051eeba40dca244b49ac63d55a553c3595d61f455efb798e"},
+    {file = "pyfamsa-0.4.0-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:b488c52307e00c0cab7dfafec3cf72082f5cccd07a1b800398109d89e3b64f7b"},
+    {file = "pyfamsa-0.4.0.tar.gz", hash = "sha256:9a09e04079b5d6401b62fed2b80886ffdd5626c30686697ff8c2b38e018e6e87"},
+]
+
+[package.dependencies]
+scoring-matrices = ">=0.2,<1.0"
+
+[[package]]
 name = "pygments"
 version = "2.16.1"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -2209,6 +2270,65 @@ quality = ["black (==22.3)", "click (==8.0.4)", "flake8 (>=3.8.3)", "isort (>=5.
 tensorflow = ["numpy (>=1.21.6)", "tensorflow (>=2.11.0)"]
 testing = ["h5py (>=3.7.0)", "huggingface-hub (>=0.12.1)", "numpy (>=1.21.6)", "pytest (>=7.2.0)", "pytest-benchmark (>=4.0.0)", "setuptools-rust (>=1.5.2)"]
 torch = ["numpy (>=1.21.6)", "torch (>=1.10)"]
+
+[[package]]
+name = "scoring-matrices"
+version = "0.2.0"
+description = "Dependency free, Cython-compatible scoring matrices to use with biological sequences."
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "scoring-matrices-0.2.0.tar.gz", hash = "sha256:cb41deca61bc113b6153c8bc18a1c0aa16729c881e0a8d3a464802e1feb897a4"},
+    {file = "scoring_matrices-0.2.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:e61d8756911652abbe1a00b65460370beaccef051a88e5ca9c4c1e8ed79c2a4a"},
+    {file = "scoring_matrices-0.2.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:4f2a5635b30e44c1b1936e3b95ba1a48cb007e6140a6a535d8266516defed1ab"},
+    {file = "scoring_matrices-0.2.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1269e4d3df6b8947641cc5907e7a056368bc05916720b60302b2732f0b65f479"},
+    {file = "scoring_matrices-0.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b2dcb23c7f7d213a88ec6e9b935f82833c441aed41de95f14c89c59641fbd473"},
+    {file = "scoring_matrices-0.2.0-cp310-cp310-win_amd64.whl", hash = "sha256:b1025ba75d93200a88a1a579c2c4c2a525a3890300c8d63a6647e28eec46087b"},
+    {file = "scoring_matrices-0.2.0-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:dc26a3aa9bd307864565c1bf8e24bdf4953807c41aca9739bcda0746f2f95fdb"},
+    {file = "scoring_matrices-0.2.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:2b90f2926bd511b58b40917dbc4fbeac6e42d84c55553ff856ae374368ed3699"},
+    {file = "scoring_matrices-0.2.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d587a2e6b4475adf127e7f2462da8db7ab2f9ac8b4481e61912c30e610edd193"},
+    {file = "scoring_matrices-0.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:506a48f8d2cf48e38c05ad67eb3fccf805e669edef3408cea167ed482df78187"},
+    {file = "scoring_matrices-0.2.0-cp311-cp311-win_amd64.whl", hash = "sha256:a571f168204a3158934eeeb2f0e1afa6c87e92cc577e83856d7bbefd47e03dc7"},
+    {file = "scoring_matrices-0.2.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:1508237ab088574703752245765de0427ab988c7c59768fc2943239d061ac9aa"},
+    {file = "scoring_matrices-0.2.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:33bd4f4466e341b68252a4f36d77809f0473ca7b475fee1a56717534773736df"},
+    {file = "scoring_matrices-0.2.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:17c44a855744a6c1fc821bf7295657c37c5abae2c720fa6b2d97ac96567ac3cb"},
+    {file = "scoring_matrices-0.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c0c9b73ce7c1c276cf3283c7c2064ec142621ed2b1074570baf6808425f89bb5"},
+    {file = "scoring_matrices-0.2.0-cp312-cp312-win_amd64.whl", hash = "sha256:60c3629a80d29798e6ee217d9db7d893db4009939a8d5fc01d195f3983d7e55b"},
+    {file = "scoring_matrices-0.2.0-cp36-cp36m-macosx_10_12_x86_64.whl", hash = "sha256:37845a7402af105c014978b57e308e85d80f6d93d3fca811b92997a6fcdb497f"},
+    {file = "scoring_matrices-0.2.0-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:77a401805f88522d1616d09dffaf092c4128b70b017177fec78cc0fd30ed988f"},
+    {file = "scoring_matrices-0.2.0-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b6998fa59056f1cb09eef710484f0db6f89bc78ec76056170b9f0c6d4fd6f5af"},
+    {file = "scoring_matrices-0.2.0-cp36-cp36m-win_amd64.whl", hash = "sha256:9c0b273b8641bb072a47ea04022d2939a6bbfc23429b59c6027aeaec2349da7e"},
+    {file = "scoring_matrices-0.2.0-cp37-cp37m-macosx_10_12_x86_64.whl", hash = "sha256:cf0b04f0befdb6c6b4209f4db76031706aaa6ba078976947cc3b175243b7d10a"},
+    {file = "scoring_matrices-0.2.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2eb20c4e2ef30097f2a0b20fc11ee13f9e6497b3dcbb3014a6fd2f325199c49f"},
+    {file = "scoring_matrices-0.2.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b4be6d24ed15df271adcce8b200a057781f5bb1a6f766d8b63d399af2698777a"},
+    {file = "scoring_matrices-0.2.0-cp37-cp37m-win_amd64.whl", hash = "sha256:536a4d360b40ab5a0dc0e705895fdf6e538b8d9a81f880ccab0fac509f9badae"},
+    {file = "scoring_matrices-0.2.0-cp38-cp38-macosx_10_12_x86_64.whl", hash = "sha256:300497024736d3667601dff0525d921ad300933569228e088c30579dc53a313a"},
+    {file = "scoring_matrices-0.2.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:cc75e475765f9e8178b7c8d8e55d9999ca4342fecd161430fec2858c1ac35c7b"},
+    {file = "scoring_matrices-0.2.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6042318d07c15c51da6f69836a902373a97e74ca4697cf6c5dd40ab05e114f78"},
+    {file = "scoring_matrices-0.2.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c9c842bafb8da9f6c1ea000e5788657a45c4c4c8e9f99385f3725ab0fb899210"},
+    {file = "scoring_matrices-0.2.0-cp38-cp38-win_amd64.whl", hash = "sha256:ff7448d758a2a7a7678ded3dbf8e376da59b0881ad3a6f819a7d7caacc2eb31a"},
+    {file = "scoring_matrices-0.2.0-cp39-cp39-macosx_10_12_x86_64.whl", hash = "sha256:b7b700252ccc46b729d640633eaf38b04fb597829f0e97658dfffcd08ebf8ab8"},
+    {file = "scoring_matrices-0.2.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:7f10ff63e21153aa8640b03185e5885566709fcbccc67509622b475c78342907"},
+    {file = "scoring_matrices-0.2.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9887b13de03bee4f4c09d34c2d58bb2fffd0b1c014dc6d61546ea7e3614bdd9a"},
+    {file = "scoring_matrices-0.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:00fff92062f5887ade812194eec49795b0e7b35c75ef1e70c9bc936c0f9af2a4"},
+    {file = "scoring_matrices-0.2.0-cp39-cp39-win_amd64.whl", hash = "sha256:b06170cd2ca2c7b75e460c8430064c134839e33b9d7792c954eb8d0c734b3b4b"},
+    {file = "scoring_matrices-0.2.0-pp310-pypy310_pp73-macosx_10_12_x86_64.whl", hash = "sha256:24fdcf0baa7ab4028a78e25b62fcf659891b9e820c3a62c4ba7cbd514456e608"},
+    {file = "scoring_matrices-0.2.0-pp310-pypy310_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:39ee980b42d7b640e3975fc1767f155896d202b6b54d774853273ad1bc30d7ab"},
+    {file = "scoring_matrices-0.2.0-pp310-pypy310_pp73-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a570c6d56e114a4c909ec06ddf034a3a049c6f558436b09396b5b0121b6181d2"},
+    {file = "scoring_matrices-0.2.0-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:2d9d5ba3bbf864a9058a6161c083b78755620ffaecc5c63088d0538342756621"},
+    {file = "scoring_matrices-0.2.0-pp37-pypy37_pp73-macosx_10_12_x86_64.whl", hash = "sha256:96e168ce61f205a695f30578978bf05d55a1729bcdaee5a81ff2a75ab61e94f4"},
+    {file = "scoring_matrices-0.2.0-pp37-pypy37_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:72f7b29fb0ecbf49f9485538d4ed07b0f3fbf0b6e71d0483073c6d33d22de993"},
+    {file = "scoring_matrices-0.2.0-pp37-pypy37_pp73-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a2145af0cebd70857a364382f91ce52ae195cfe8ff8525332f1b0d468eba52de"},
+    {file = "scoring_matrices-0.2.0-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:2890565845e71b0464e9af40941aaa8011678cbbcced5de5fb016ad554d6f135"},
+    {file = "scoring_matrices-0.2.0-pp38-pypy38_pp73-macosx_10_12_x86_64.whl", hash = "sha256:d4b01c81579a34a0174e951b87753e6a5823456a4615bddb6fed336a6f1b87c4"},
+    {file = "scoring_matrices-0.2.0-pp38-pypy38_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3b957c3dc449f89e9fcd21b3f8610e1152da9df61b421f86442720e8e841be8e"},
+    {file = "scoring_matrices-0.2.0-pp38-pypy38_pp73-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e9a28b2ca17b0a73cc373449fa128c409332bb34f82a0b762a426fc783658d20"},
+    {file = "scoring_matrices-0.2.0-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:47cc687c42b8a150984a614ce78cf38c929a184ef688025a315cf2e2d1fe537b"},
+    {file = "scoring_matrices-0.2.0-pp39-pypy39_pp73-macosx_10_12_x86_64.whl", hash = "sha256:3123aa578aae5461b39947e3a0b58c26d7159921c3a6a88cc80a6b98cfa4244c"},
+    {file = "scoring_matrices-0.2.0-pp39-pypy39_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1df6090223766b89ee4d7bf0bad6d5c0e9fbda9e87bd4b4d0b121c03a1be8c21"},
+    {file = "scoring_matrices-0.2.0-pp39-pypy39_pp73-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:557443f0023a92813c0dd63b232b0489fcff3a2fff8272ab76e58b98ec3d7d20"},
+    {file = "scoring_matrices-0.2.0-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:9be012d91a5fde26c83ed6d609d0b3a0a3a329f82a180b724b45ef77d42603f9"},
+]
 
 [[package]]
 name = "setuptools"
@@ -2812,4 +2932,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "1c1eb710cf597d101d6e4cb8b19c26c7f9d53c18b215ae9cf0125fb491ffcc85"
+content-hash = "89dfb6799961138cb03b7a75b53512356fa48ae1e3bd63cde9c91502dd01f512"
