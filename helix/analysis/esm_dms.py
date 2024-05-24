@@ -3,7 +3,6 @@ from helix.core import app
 import modal
 import numpy as np
 import pandas as pd
-import torch
 import random
 
 np.random.seed(1)
@@ -44,6 +43,7 @@ def mask_sequence(tokenized_sequence, tokenizer):
 
 
 def compute_pppl(row, sequence, model, tokenizer, offset_idx):
+    import torch
     wt, idx, mt = row[0], int(row[1:-1]) - offset_idx, row[-1]
     assert sequence[idx] == wt, "The listed wildtype does not match the provided sequence"
 
@@ -67,6 +67,7 @@ def compute_pppl(row, sequence, model, tokenizer, offset_idx):
 
 
 def compute_masked_log_probs(batch_tokenized_sequences, model, tokenizer):
+    import torch
     all_token_probs = []  # tokenized sequence length
     for i in range(batch_tokenized_sequences.size(1)):
         with torch.inference_mode():
@@ -85,6 +86,7 @@ def create_batches(tensor, batch_size):
 
 
 def compute_log_probs(batch_tokenized_sequences, model):
+    import torch
     token_probs_list = []
     with torch.inference_mode():
         logits = model(batch_tokenized_sequences.cuda()).logits
@@ -98,6 +100,7 @@ def compute_log_probs(batch_tokenized_sequences, model):
 @app.function(gpu=modal.gpu.A100(size="80GB"), image=image, timeout=4000)
 def dms(sequence, metrics=["wt_marginal", "masked_marginal"]):
     import transformers
+    import torch
     offset_idx = 1
     mutation_col = "mutant"
     data = [
