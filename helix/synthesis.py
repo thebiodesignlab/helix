@@ -239,7 +239,7 @@ def create_primer_well_df(primer_df: pd.DataFrame, start_well: str = 'A1'):
     # Define well positions
     rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     cols = list(range(1, 13))
-    all_well_positions = [f"{row}{col}" for row in rows for col in cols]
+    all_well_positions = [f"{row}{col}" for col in cols for row in rows]
 
     # Find the index of the starting well
     try:

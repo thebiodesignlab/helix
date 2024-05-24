@@ -1,6 +1,6 @@
 from io import StringIO
 from modal import Image, method, gpu
-from .main import stub
+from helix.core import app
 import modal
 from Bio.PDB.Structure import Structure
 from Bio import SeqIO
@@ -39,7 +39,7 @@ image = Image.debian_slim().apt_install("git").pip_install(
 ).run_function(download_models)
 
 
-@stub.cls(gpu=gpu.A10G(), timeout=2000,  image=image, allow_cross_region_volumes=True, concurrency_limit=9)
+@app.cls(gpu=gpu.A10G(), timeout=2000,  image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EsmModel():
     def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D"):
         import transformers
@@ -71,7 +71,7 @@ class EsmModel():
         torch.cuda.empty_cache()
 
 
-@stub.cls(gpu=gpu.A100(memory=80), timeout=2000,  image=image, allow_cross_region_volumes=True, concurrency_limit=9)
+@app.cls(gpu=gpu.A100(memory=80), timeout=2000,  image=image, allow_cross_region_volumes=True, concurrency_limit=9)
 class EsmForMaskedLM():
     def __init__(self, device: str = "cuda", model_name: str = "facebook/esm2_t36_3B_UR50D", peft_path: str = None):
         # import transformers
@@ -197,7 +197,7 @@ class EsmForMaskedLM():
         torch.cuda.empty_cache()
 
 
-@stub.cls(gpu="A10G", timeout=6000,  image=image)
+@app.cls(gpu="A10G", timeout=6000,  image=image)
 class ESMFold():
     def __init__(self, device: str = "cuda"):
         from transformers import AutoTokenizer, EsmForProteinFolding
@@ -261,7 +261,7 @@ PROTEIN_STRUCTURE_MODELS = {
 }
 
 
-@stub.function(image=image, timeout=10000)
+@app.function(image=image, timeout=10000)
 def predict_structures(sequences, model_name: str = "esmfold", batch_size: int = 1):
     from helix.utils import create_batches
     if model_name not in PROTEIN_STRUCTURE_MODELS:
@@ -283,7 +283,7 @@ def predict_structures(sequences, model_name: str = "esmfold", batch_size: int =
     return result
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def predict_structures_from_fasta(fasta_file: str, output_dir: str, batch_size: int = 1):
     """
     Predicts protein structures from a given FASTA file and saves them as PDB files in the specified output directory.
@@ -303,7 +303,7 @@ def predict_structures_from_fasta(fasta_file: str, output_dir: str, batch_size: 
         io.save(f"{output_dir}/{struct.id}.pdb")
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def predict_structures_from_csv(csv_file: str, id_column: str, sequence_column: str, output_dir: str, batch_size: int = 1):
     """
     Predicts protein structures from a given CSV file and saves them as PDB files in the specified output directory.
@@ -336,7 +336,7 @@ def predict_structures_from_csv(csv_file: str, id_column: str, sequence_column: 
         io.save(f"{output_dir}/{struct.id}.pdb")
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def calculate_entropy(sequence: str, model_name: str = "facebook/esm2_t36_3B_UR50D") -> list[float]:
     """
     Calculate the entropy for each residue position in a protein sequence.

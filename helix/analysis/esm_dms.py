@@ -1,5 +1,5 @@
-from helix.main import stub
 from helix.esm import image
+from helix.core import app
 import modal
 import numpy as np
 import pandas as pd
@@ -95,8 +95,8 @@ def compute_log_probs(batch_tokenized_sequences, model):
     return token_probs
 
 
-@stub.function(gpu=modal.gpu.A100(size="80GB"), image=image, timeout=4000)
-def dms(sequence):
+@app.function(gpu=modal.gpu.A100(size="80GB"), image=image, timeout=4000)
+def dms(sequence, metrics=["wt_marginal", "masked_marginal"]):
     import transformers
     offset_idx = 1
     mutation_col = "mutant"
@@ -116,27 +116,30 @@ def dms(sequence):
             model = model.cuda()
         batch_tokenized_sequences = tokenizer(
             [sequence], return_tensors="pt", add_special_tokens=True)['input_ids']
-        masked_log_probs = compute_masked_log_probs(
-            batch_tokenized_sequences, model, tokenizer)
-        token_log_probs = compute_log_probs(batch_tokenized_sequences, model)
-        df[model_name+"_wt_marginal"] = df.apply(
-            lambda row: label_row(
-                row[mutation_col],
-                sequence,
-                token_log_probs,
-                tokenizer,
-                offset_idx,
-            ),
-            axis=1,
-        )
-        df[model_name+"_masked_marginal"] = df.apply(
-            lambda row: label_row(
-                row[mutation_col],
-                sequence,
-                masked_log_probs,
-                tokenizer,
-                offset_idx,
-            ),
-            axis=1,
-        )
+        if "wt_marginal" in metrics:
+            token_log_probs = compute_log_probs(
+                batch_tokenized_sequences, model)
+            df[model_name+"_wt_marginal"] = df.apply(
+                lambda row: label_row(
+                    row[mutation_col],
+                    sequence,
+                    token_log_probs,
+                    tokenizer,
+                    offset_idx,
+                ),
+                axis=1,
+            )
+        if "masked_marginal" in metrics:
+            masked_log_probs = compute_masked_log_probs(
+                batch_tokenized_sequences, model, tokenizer)
+            df[model_name+"_masked_marginal"] = df.apply(
+                lambda row: label_row(
+                    row[mutation_col],
+                    sequence,
+                    masked_log_probs,
+                    tokenizer,
+                    offset_idx,
+                ),
+                axis=1,
+            )
     return df
