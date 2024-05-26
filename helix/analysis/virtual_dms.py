@@ -1,7 +1,6 @@
 from helix.core import images
 from helix.analysis.sequence.scorer import score_mutations
 from helix.core import app
-import modal
 import pandas as pd
 
 AAs = [
@@ -31,7 +30,7 @@ def label_row(row, sequence, token_probs, tokenizer, offset_idx):
     return score.item()
 
 
-@app.function(gpu=modal.gpu.A100(size="80GB"), image=images.base, timeout=4000)
+@app.function(image=images.base, timeout=4000)
 def dms(sequence, metrics=["wildtype_marginal", "masked_marginal"]):
     offset_idx = 1
     mutation_col = "mutant"

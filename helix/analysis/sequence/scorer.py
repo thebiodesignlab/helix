@@ -1,12 +1,12 @@
 from typing import Union
 from helix.core import volumes, images
 from helix.core import app
-from modal import enter, method
+from modal import enter, method, gpu
 
 MODEL_DIR = "/vol/models"
 
 
-@app.cls(gpu="any", volumes={MODEL_DIR: volumes.model_weights}, image=images.base)
+@app.cls(gpu=gpu.A100(size="80GB"), volumes={MODEL_DIR: volumes.model_weights}, image=images.base)
 class MLMScorer:
     def __init__(self, model_name):
         self.model_name = model_name
