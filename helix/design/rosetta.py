@@ -1,11 +1,11 @@
-from modal import Image, Stub
-from .main import VOLUME_CONFIG, PROTEIN_DBS_PATH
-stub = Stub("rosettafold")
+from modal import Image
+from helix.core import app, volumes
 
+ROSETTA_DEPS_PATH = '/vol/rosetta-deps'
 
 rosettafold_image = (
     Image.micromamba()
-    .apt_install("wget", "git", "tar", "gcc", "g++", "make")
+    .apt_install("wget", "git", "tar", "gcc", "g++", "make", "aria2")
     .micromamba_install(
         "cudatoolkit=11.1",
         "cudnn=8.8.0",
@@ -44,35 +44,17 @@ rosettafold_image = (
     .run_commands(
         "git clone https://github.com/baker-laboratory/RoseTTAFold-All-Atom")
     .workdir("/RoseTTAFold-All-Atom")
-    .run_commands("wget -nv http://wwwuser.gwdg.de/~compbiol/data/csblast/releases/csblast-2.2.3_$(uname -s | tr '[:upper:]' '[:lower:]')$(uname -m | grep -o '..$').tar.gz -O csblast-2.2.3.tar.gz", "mkdir -p csblast-2.2.3", "tar xf csblast-2.2.3.tar.gz -C csblast-2.2.3 --strip-components=1")
-    .run_commands(
-        "wget -nv http://wwwuser.gwdg.de/~compbiol/uniclust/2020_06/UniRef30_2020_06_hhsuite.tar.gz",
-        "mkdir -p UniRef30_2020_06",
-        "tar xfz UniRef30_2020_06_hhsuite.tar.gz -C ./UniRef30_2020_06"
-    )
-    .run_commands(
-        "wget -nv http://files.ipd.uw.edu/pub/RF-All-Atom/weights/RFAA_paper_weights.pt"
-    )
-    # .run_commands(
-    #     "wget -nv https://bfd.mmseqs.com/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz")
-    # .run_commands(
-    #     "mkdir -p bfd")
-    # .run_commands(
-    #     "tar xfz bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz -C ./bfd"
-    # )
-    # .run_commands(
-    #     "wget -nv https://files.ipd.uw.edu/pub/RoseTTAFold/pdb100_2021Mar03.tar.gz",
-    #     "tar xfz pdb100_2021Mar03.tar.gz"
-    # )
 )
 
 
-@stub.function(
+@app.function(
     image=rosettafold_image,
     # secret=Secret.from_name("signalp-license-secret"),
-    # gpu=gpu.A100(memory=40),
-    volumes=VOLUME_CONFIG,
-    timeout=3600*10
+    memory=6400,
+    cpu=8,
+    volumes={ROSETTA_DEPS_PATH: volumes.rosetta},
+    timeout=3600*10,
+    _allow_background_volume_commits=True
 )
 def download_dependencies():
     import platform
@@ -83,28 +65,62 @@ def download_dependencies():
     platform.system().lower() + platform.architecture()[0][:-3]
 
     # Define the base directory for downloads
-    base_dir = Path(PROTEIN_DBS_PATH)
+    base_dir = Path(ROSETTA_DEPS_PATH)
 
     # Define the list of commands for downloading and extracting files
-    commands = [
-        "wget -nv https://bfd.mmseqs.com/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz -O " +
-        str(base_dir / "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz"),
-        "mkdir -p " + str(base_dir / "bfd"),
-        "tar xfz " + str(base_dir / "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz") +
-        " -C " + str(base_dir / "bfd")
+    commands = []
+
+    # Define the download and extraction steps
+    download_steps = [
+        {
+            "url": "https://files.ipd.uw.edu/pub/RoseTTAFold/pdb100_2021Mar03.tar.gz",
+            "dir": base_dir / "pdb100_2021Mar03",
+            "tar_file": base_dir / "pdb100_2021Mar03.tar.gz"
+        },
+        {
+            "url": "https://wwwuser.gwdg.de/~compbiol/uniclust/2020_06/UniRef30_2020_06_hhsuite.tar.gz",
+            "dir": base_dir / "UniRef30_2020_06",
+            "tar_file": base_dir / "UniRef30_2020_06_hhsuite.tar.gz"
+        },
+        {
+            "url": "https://bfd.mmseqs.com/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz",
+            "dir": base_dir / "bfd",
+            "tar_file": base_dir / "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz"
+        },
+        {
+            "url": "https://ftp.ncbi.nlm.nih.gov/blast/executables/legacy.NOTSUPPORTED/2.2.26/blast-2.2.26-x64-linux.tar.gz",
+            "dir": base_dir / "blast-2.2.26",
+            "tar_file": base_dir / "blast-2.2.26-x64-linux.tar.gz",
+            "post_commands": [
+                f"cp -r {base_dir / 'blast-2.2.26/blast-2.2.26/'} {base_dir / 'blast-2.2.26_bk'}",
+                f"rm -r {base_dir / 'blast-2.2.26'}",
+                f"mv {base_dir / 'blast-2.2.26_bk/'} {base_dir / 'blast-2.2.26'}"
+            ]
+        }
     ]
+
+    for step in download_steps:
+        if not step["dir"].exists():
+            if not step["tar_file"].exists():
+                commands.append(
+                    f"aria2c -x 16 -s 16 {step['url']} -d {base_dir}")
+            commands.append(f"mkdir -p {step['dir']}")
+            commands.append(f"tar xfz {step['tar_file']}")
+            if "post_commands" in step:
+                commands.extend(step["post_commands"])
 
     for cmd in commands:
         print(f"Running command: {cmd}")
         subprocess.run(cmd, shell=True, check=True)
-        VOLUME_CONFIG[PROTEIN_DBS_PATH].commit()
 
 
-@stub.function(
+@app.function(
     image=rosettafold_image,
     # secret=Secret.from_name("signalp-license-secret"),
     # gpu=gpu.A100(memory=40),
-    volumes=VOLUME_CONFIG,
+    volumes={
+        ROSETTA_DEPS_PATH: volumes.rosetta
+    },
     timeout=3600*10
 )
 def run_rosettafold(config_path: str, out_dir: str = "/shared"):
@@ -116,7 +132,7 @@ def run_rosettafold(config_path: str, out_dir: str = "/shared"):
     os.system(f"cp -r {out_dir} /shared")
 
 
-@stub.local_entrypoint()
+@ app.local_entrypoint()
 def main():
     download_dependencies.remote()
     # run_rosettafold.remote("rf2aa/config/inference/base.yaml")
