@@ -3,7 +3,7 @@ from helix.core import volumes, images
 from helix.core import app
 from modal import enter, method, gpu
 
-MODEL_DIR = "/vol/models"
+MODEL_DIR = "/mnt/models"
 
 
 @app.cls(gpu=gpu.A100(size="80GB"), volumes={MODEL_DIR: volumes.model_weights}, image=images.base)
@@ -83,7 +83,7 @@ class MLMScorer:
         return token_probs
 
 
-@app.function(gpu="any", image=images.base, timeout=2000)
+@app.function(gpu="any", image=images.base, timeout=3000)
 def score_mutations(model_name: str, sequence: str, mutations: list[str], metric: str, offset_idx: int = 1) -> float:
     """
     Calculate the score of mutations based on the specified metric.
@@ -131,21 +131,3 @@ def score_mutations(model_name: str, sequence: str, mutations: list[str], metric
                 log_probs[0, 1 + idx, wt_encoded]
             scores.append(score.item())
     return scores
-
-
-# @app.local_entrypoint()
-# def score_mutation(sequence: str, mutation: str, model_name: str = "facebook/esm1b_t33_650M_UR50S") -> float:
-#     """
-#     Entry point to score a single mutation in a given protein sequence.
-
-#     Args:
-#         sequence (str): The original protein sequence.
-#         mutation (str): The mutation to score, formatted as 'W123A'.
-
-#     Returns:
-#         float: The score of the mutation using the default metric.
-#     """
-#     scorer = MLMScorer(model_name=model_name)
-#     scores = scorer.score_mutations.remote(
-#         sequence, [mutation], 'pppl')
-#     print(f"Score for mutation {mutation}: {scores[0]}")
