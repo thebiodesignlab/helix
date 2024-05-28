@@ -2,11 +2,11 @@ from itertools import repeat
 import os
 
 import numpy as np
-from .esm import EsmModel, EsmForMaskedLM, image as esm_image
+from ...esm import EsmModel, EsmForMaskedLM, image as esm_image
 from .main import stub
 from Bio import SeqIO
 
-from .utils import create_batches
+from ...utils import create_batches
 
 
 @stub.function(image=esm_image)
