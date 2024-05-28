@@ -11,7 +11,7 @@ class ESMFold():
         from transformers import AutoTokenizer, EsmForProteinFolding
         self.tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
         self.model = EsmForProteinFolding.from_pretrained(
-            "facebook/esmfold_v1",)  # low_cpu_mem_usage=True
+            "facebook/esmfold_v1", cache_dir=MODEL_DIR)
         self.device = device
         if device == "cuda":
             self.model = self.model.cuda()
