@@ -10,7 +10,7 @@ image = Image.micromamba().apt_install("wget", "git", "tar").micromamba_install(
         "bioconda",
         "conda-forge"
     ],
-).pip_install("jupyter")
+).pip_install("jupyter", "pandas", "numpy")
 
 tmp_dir = "/tmp/mmseqs"
 
