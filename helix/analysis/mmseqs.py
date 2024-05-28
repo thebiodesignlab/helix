@@ -1,10 +1,7 @@
-import time
-from modal import Image, App, method
-import modal
-from .main import PROTEIN_DBS_PATH, VOLUME_CONFIG
+from modal import Image, method
+from helix.core import app, volumes
 import subprocess
 import os
-app = App(name="helix-mmseqs")
 
 
 image = Image.micromamba().apt_install("wget", "git", "tar").micromamba_install(
@@ -17,15 +14,21 @@ image = Image.micromamba().apt_install("wget", "git", "tar").micromamba_install(
 
 tmp_dir = "/tmp/mmseqs"
 
+DATABASES_PATH = "/mnt/databases"
+
 
 @app.cls(
     image=image,
-    volumes=VOLUME_CONFIG,
+    volumes={DATABASES_PATH: volumes.mmseqs_databases},
     timeout=3600*10,
-    cpu=8.0,
-    memory=6768
+    cpu=10.0,
+    memory=250.0,
 )
 class MMSeqs:
+
+    def __init__(self):
+        self.local_databases = self._get_local_databases()
+
     @method()
     def download_db(self, db_name, local_db_name):
         """
@@ -40,7 +43,7 @@ class MMSeqs:
         import subprocess
         import os
 
-        local_db_path = os.path.join(PROTEIN_DBS_PATH, local_db_name)
+        local_db_path = os.path.join(DATABASES_PATH, local_db_name)
 
         # Check if the local database already exists before attempting to download
         if not os.path.exists(local_db_path):
@@ -52,10 +55,43 @@ class MMSeqs:
                 tmp_dir
             ]
             subprocess.run(command, check=True)
-            VOLUME_CONFIG[PROTEIN_DBS_PATH].commit()
+            volumes.mmseqs_databases.commit()
         else:
             print(
                 f"Database {local_db_name} already exists at {local_db_path}.")
+
+    def _get_local_databases(self):
+        """
+        List all databases that have been downloaded and are available in the local storage.
+        This method now simply lists the names of the databases without detailing the associated files.
+
+        Returns:
+            list: A list of database names available in the local storage.
+        """
+        import os
+
+        # Ensure the directory exists
+        if not os.path.exists(DATABASES_PATH):
+            print(
+                f"No databases found. Directory {DATABASES_PATH} does not exist.")
+            return []
+
+        # List only .source files in the database path
+        database_files = [f for f in os.listdir(
+            DATABASES_PATH) if f.endswith('.source')]
+        databases = set()
+        if not database_files:
+            print("No databases have been downloaded yet.")
+        else:
+            print("Downloaded databases:")
+            for db_file in database_files:
+                db_name = db_file.replace('.source', '')
+                databases.add(db_name)
+
+            for db in databases:
+                print(db)
+
+        return list(databases)
 
     @method()
     def search_sequence(self, sequence, db_name):
@@ -67,18 +103,11 @@ class MMSeqs:
             db_name (str): The name of the database to search against.
         """
         import tempfile
-        db_path = os.path.join(PROTEIN_DBS_PATH, db_name)
+        db_path = os.path.join(DATABASES_PATH, db_name)
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmpfile:
             tmpfile.write(f">{tmpfile.name}\n{sequence}\n")
             tmpfile_path = tmpfile.name
-        result_path = tmpfile_path + "_result"
-        # Create a database from the input sequence
-        subprocess.run([
-            "mmseqs",
-            "createdb",
-            tmpfile_path,
-            tmpfile_path + "_db"
-        ], check=True)
+        result_path = "result.m8"
 
         # Run the search
         subprocess.run([
@@ -87,13 +116,21 @@ class MMSeqs:
             tmpfile_path,
             db_path,
             result_path,
-            "/tmp/mmseqs",
-            "--format-mode",
-            "0",
+            "tmp"
         ], check=True)
 
-        with open(result_path, 'r') as file:
-            return file.read()
+        import pandas as pd
+
+        # Define the column headers
+        columns = [
+            "query", "target", "pident", "alnlen", "mismatch", "gapopen",
+            "qstart", "qend", "tstart", "tend", "evalue", "bits"
+        ]
+
+        # Read the results into a pandas DataFrame
+        df = pd.read_csv(result_path, sep='\t', header=None, names=columns)
+
+        return df
 
     @method()
     def align(self, sequences):
@@ -191,104 +228,6 @@ class MMSeqs:
         cluster_result_cluster_tsv_path = cluster_result_path + "_cluster.tsv"
         cluster_result_path + "_rep_seq.fasta"
 
-        # Read cluster results
-        with open(cluster_result_cluster_tsv_path, 'r') as cluster_file:
-            return cluster_file.readlines()
-
-
-@app.function(concurrency_limit=1, _allow_background_volume_commits=True)
-def run_jupyter(timeout: int):
-    import subprocess
-    import os
-    jupyter_port = 8888
-    with modal.forward(jupyter_port) as tunnel:
-        jupyter_process = subprocess.Popen(
-            [
-                "jupyter",
-                "notebook",
-                "--no-browser",
-                "--allow-root",
-                "--ip=0.0.0.0",
-                f"--port={jupyter_port}",
-                "--NotebookApp.allow_origin='*'",
-                "--NotebookApp.allow_remote_access=1",
-            ],
-            env={**os.environ, "JUPYTER_TOKEN": "abc"},
-        )
-
-        print(f"Jupyter available at => {tunnel.url}")
-
-        try:
-            end_time = time.time() + timeout
-            while time.time() < end_time:
-                time.sleep(5)
-            print(
-                f"Reached end of {timeout} second timeout period. Exiting...")
-        except KeyboardInterrupt:
-            print("Exiting...")
-        finally:
-            jupyter_process.kill()
-
-
-@app.local_entrypoint()
-def main():
-    m = MMSeqs()
-    # m.download_db.remote("UniProtKB/TrEMBL", "uniprot_trembl")
-    print(m.search_sequence.remote("MSGKIDKILIVGGGTAGWMAASYLGKALQGTADITLLQAPDIPTLGVGEATIPNLQTAFFDFLGIPEDEWMRECNASYKVAIKFINWRTAGEGTSEARELDGGPDHFYHSFGLLKYHEQIPLSHYWFDRSYRGKTVEPFDYACYKEPVILDANRSPRRLDGSKVTNYAWHFDAHLVADFLRRFATEKLGVRHVEDRVEHVQRDANGNIESVRTATGRVFDADLFVDCSGFRGLLINKAMEEPFLDMSDHLLNDSAVATQVPHDDDANGVEPFTSAIAMKSGWTWKIPMLGRFGTGYVYSSRFATEDEAVREFCEMWHLDPETQPLNRIRFRVGRNRRAWVGNCVSIGTSSCFVEPLESTGIYFVYAALYQLVKHFPDKSLNPVLTARFNREIETMFDDTRDFIQAHFYFSPRTDTPFWRANKELRLADGMQEKIDMYRAGMAINAPASDDAQLYYGNFEEEFRNFWNNSNYYCVLAGLGLVPDAPSPRLAHMPQATESVDEVFGAVKDRQRNLLETLPSLHEFLRQQHGR", "uniprot_trembl"))
-
-
-@app.local_entrypoint()
-def cluster_sequences_from_csv(csv_path):
-    import pandas as pd
-    import json
-    import csv
-    import os
-
-    # Load CSV file containing sequences and their IDs
-    data = pd.read_csv(csv_path)
-    if 'sequence' not in data.columns or 'id' not in data.columns:
-        raise ValueError("CSV must contain 'sequence' and 'id' columns")
-
-    # Initialize MMSeqs object
-    m = MMSeqs()
-
-    # Prepare sequences and ids
-    sequences = data['sequence'].tolist()
-    ids = data['id'].tolist()
-    for seq_identity_threshold in [0, 0.4, 0.6, 0.7, 0.9]:
-
-        # Run clustering
-        cluster_tsv = m.cluster_sequences.remote(
-            sequences, ids, seq_identity_threshold)
-
-        # Parse cluster results
-        clusters = {}
-        for line in cluster_tsv:
-            cluster_id, seq_id = line.strip().split('\t')
-            if cluster_id not in clusters:
-                clusters[cluster_id] = []
-            clusters[cluster_id].append(seq_id)
-
-        # Define output filenames based on input CSV path
-        csv_output_path = os.path.splitext(
-            csv_path)[0] + '_clusters_' + str(seq_identity_threshold) + '.csv'
-        json_output_path = os.path.splitext(
-            csv_path)[0] + ' _clusters_' + str(seq_identity_threshold) + '.json'
-
-        # Write clusters to CSV
-        with open(csv_output_path, 'w', newline='') as csvfile:
-            fieldnames = ['Representative Sequence', 'Cluster Members']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-            writer.writeheader()
-            for cluster_id, seq_ids in clusters.items():
-                writer.writerow({'Representative Sequence': cluster_id,
-                                'Cluster Members': ','.join(seq_ids)})
-
-        # Write clusters to JSON
-        with open(json_output_path, 'w') as jsonfile:
-            json.dump(clusters, jsonfile)
-
-
-# Example usage:
-# cluster_sequences_from_csv('path/to/your/sequences.csv')
+        # Read cluster results and return as a DataFrame
+        import pandas as pd
+        return pd.read_csv(cluster_result_cluster_tsv_path, sep='\t', header=None, names=['cluster_id', 'sequence_id'])
