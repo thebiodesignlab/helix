@@ -2,7 +2,7 @@
 
 import pandas as pd
 from dnachisel import AvoidPattern, DnaOptimizationProblem, CodonOptimize, EnforceTranslation, reverse_translate
-from .main import stub
+from helix.core import app
 from modal import Image
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
@@ -11,7 +11,7 @@ image = Image.debian_slim().pip_install(
     "dnachisel", "biopython", "biotite", "pandas", "primers", "openpyxl")
 
 
-@stub.function(image=image)
+@app.function(image=image)
 def codon_optimize(sequence: SeqRecord, organism="e_coli", avoid_patterns=[], gc_min=0, gc_max=1, gc_window=50):
     """
     Optimize a DNA sequence for expression in a given organism.
@@ -134,7 +134,7 @@ def create_primer_data(mutated_sequence, gene_start, mutation, optimal_len, pena
     }
 
 
-@stub.function(image=image)
+@app.function(image=image)
 def create_kld_primers(plasmid_sequence, gene_start, mutations, optimal_len=24, penalty_len=5):
     """
     Create primers for a list of point mutations in a plasmid sequence to be used in KLD Site-Directed Mutagenesis.
@@ -176,7 +176,7 @@ def create_kld_primers(plasmid_sequence, gene_start, mutations, optimal_len=24, 
     return pd.DataFrame(primer_data)
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def codon_optimize_from_fasta(fasta_file: str, output_path, organism: str = "e_coli", avoid_patterns: str = "", gc_min=0, gc_max=1, gc_window=50):
     """
     Optimize a DNA sequence for expression in a given organism.
@@ -195,7 +195,7 @@ def codon_optimize_from_fasta(fasta_file: str, output_path, organism: str = "e_c
     SeqIO.write(records, output_path, "fasta")
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def create_kld_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations: str, output_path: str, plate_output_path: str, start_well: str = 'A1'):
     """
     Create primers for a list of point mutations in a plasmid sequence 
