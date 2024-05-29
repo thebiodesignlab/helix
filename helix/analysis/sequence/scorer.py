@@ -6,7 +6,7 @@ from modal import enter, method, gpu
 MODEL_DIR = "/mnt/models"
 
 
-@app.cls(gpu=gpu.A100(size="80GB"), volumes={MODEL_DIR: volumes.model_weights}, image=images.base)
+@app.cls(gpu=gpu.A100(size="80GB"), volumes={MODEL_DIR: volumes.model_weights}, image=images.base, timeout=4000)
 class MLMScorer:
     def __init__(self, model_name):
         self.model_name = model_name
@@ -83,7 +83,7 @@ class MLMScorer:
         return token_probs
 
 
-@app.function(gpu="any", image=images.base, timeout=3000)
+@app.function(gpu="any", image=images.base, timeout=4000)
 def score_mutations(model_name: str, sequence: str, mutations: list[str], metric: str, offset_idx: int = 1) -> float:
     """
     Calculate the score of mutations based on the specified metric.
