@@ -31,7 +31,8 @@ def label_row(row, sequence, token_probs, tokenizer, offset_idx):
 
 
 @app.function(image=images.base, timeout=4000)
-def dms(sequence, metrics=["wildtype_marginal", "masked_marginal"]):
+def dms(sequence, metrics=["wildtype_marginal", "masked_marginal"], model_names=["facebook/esm1b_t33_650M_UR50S",  "facebook/esm2_t33_650M_UR50D", "facebook/esm2_t36_3B_UR50D"]):
+
     offset_idx = 1
     mutation_col = "mutant"
     data = [
@@ -41,8 +42,6 @@ def dms(sequence, metrics=["wildtype_marginal", "masked_marginal"]):
     df = pd.DataFrame(data, columns=[mutation_col])
     [sequence[:pos] + mt + sequence[pos+1:]
      for pos, wt, mt in deep_mutational_scan(sequence)]
-    model_names = ["facebook/esm1b_t33_650M_UR50S", "facebook/esm1v_t33_650M_UR90S_1", "facebook/esm1v_t33_650M_UR90S_2", "facebook/esm1v_t33_650M_UR90S_3",
-                   "facebook/esm1v_t33_650M_UR90S_4", "facebook/esm1v_t33_650M_UR90S_5", "facebook/esm2_t36_3B_UR50D", "facebook/esm2_t48_15B_UR50D"]
 
     for metric in metrics:
         results = score_mutations.starmap(
