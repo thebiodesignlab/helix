@@ -1,5 +1,5 @@
 
-from dnachisel import AvoidPattern, DnaOptimizationProblem, CodonOptimize, EnforceTranslation, reverse_translate
+
 from helix.core import app
 from modal import Image
 from Bio.SeqRecord import SeqRecord
@@ -23,6 +23,7 @@ def codon_optimize(sequence: SeqRecord, organism="e_coli", avoid_patterns=[], gc
         A list of sequence patterns to avoid in the optimized sequence. Default is []. E.g. ["BsaI_site", "BsmBI_site"].
 
     """
+    from dnachisel import AvoidPattern, DnaOptimizationProblem, CodonOptimize, EnforceTranslation, reverse_translate
     sequence.seq = Seq(reverse_translate(sequence.seq))
     constraints = [
         # EnforceGCContent(mini=gc_min, maxi=gc_max, window=gc_window),
@@ -156,6 +157,7 @@ def create_kld_primers(plasmid_sequence, gene_start, mutations, optimal_len=24, 
     DataFrame
         A DataFrame containing primer data for each mutation.
     """
+    import pandas as pd
     primer_data = []
     gene_start = gene_start - 1  # Convert to 0-based index
     for mutation in mutations:
