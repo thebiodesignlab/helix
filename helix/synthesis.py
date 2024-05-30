@@ -1,6 +1,4 @@
 
-
-import pandas as pd
 from dnachisel import AvoidPattern, DnaOptimizationProblem, CodonOptimize, EnforceTranslation, reverse_translate
 from helix.core import app
 from modal import Image
@@ -226,7 +224,7 @@ def create_kld_primers_to_csv(plasmid_sequence: str, gene_start: int, mutations:
             plate_output_path, index=False)
 
 
-def create_primer_well_df(primer_df: pd.DataFrame, start_well: str = 'A1'):
+def create_primer_well_df(primer_df, start_well: str = 'A1'):
     """
     Create a df mapping forward and reverse primers to the same well positions in a 96-well plate.
     Parameters
@@ -236,6 +234,7 @@ def create_primer_well_df(primer_df: pd.DataFrame, start_well: str = 'A1'):
     start_well : str
         The well position to start assigning primers from.
     """
+    import pandas as pd
     # Define well positions
     rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     cols = list(range(1, 13))
