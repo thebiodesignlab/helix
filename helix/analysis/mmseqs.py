@@ -1,24 +1,17 @@
-from modal import Image, method
-from helix.core import app, volumes
+from modal import method, Dict
+from helix.core import app, volumes, images
 import subprocess
-import os
-
-
-image = Image.micromamba().apt_install("wget", "git", "tar").micromamba_install(
-    "mmseqs2",
-    channels=[
-        "bioconda",
-        "conda-forge"
-    ],
-).pip_install("jupyter", "pandas", "numpy")
+from pathlib import Path
 
 tmp_dir = "/tmp/mmseqs"
-
 DATABASES_PATH = "/mnt/databases"
+
+# Create a persisted dict to keep track of databases
+db_dict = Dict.from_name("mmseqs-db-dict", create_if_missing=True)
 
 
 @app.cls(
-    image=image,
+    image=images.mmseqs,
     volumes={DATABASES_PATH: volumes.mmseqs_databases},
     timeout=3600*10,
     cpu=10.0,
@@ -29,24 +22,56 @@ class MMSeqs:
     def __init__(self):
         self.local_databases = self._get_local_databases()
 
+    def generate_unique_db_name(self):
+        """
+        Generate a unique database name for storing downloaded databases.
+
+        Returns:
+            str: A unique database name.
+        """
+        import uuid
+        return str(uuid.uuid4()).replace("-", "_")
+
+    def get_local_db_path(self, db_name):
+        """
+        Get the local path of a database by its name. If the database does not exist, raise an error and provide instructions to download it.
+
+        Args:
+            db_name (str): The name of the database.
+
+        Returns:
+            str: The local path of the database.
+
+        Raises:
+            KeyError: If the database does not exist in the dictionary.
+        """
+        if db_name not in db_dict:
+            raise KeyError(
+                f"Database '{db_name}' does not exist. Please download it using the 'download_db.remote('{db_name}')' method.")
+        elif not (Path(DATABASES_PATH) / db_dict[db_name]):
+            db_dict.pop(db_name)
+            raise FileNotFoundError(
+                f"Database '{db_name}' not found at path {DATABASES_PATH}/{db_dict[db_name]}. Try downloading it again.")
+        return Path(DATABASES_PATH) / db_dict[db_name]
+
     @method()
-    def download_db(self, db_name, local_db_name):
+    def download_db(self, db_name):
         """
         Download and set up a database using the MMSeqs2 'databases' command with sensible defaults.
 
         Args:
             db_name (str): The name of the database to download (e.g., 'UniProtKB/Swiss-Prot').
-            local_db_name (str): The name to use for the local database in PROTEIN_DBS_PATH
 
         This method assumes that the MMSeqs2 'databases' command is available and configured properly.
         """
         import subprocess
         import os
 
+        local_db_name = self.generate_unique_db_name()
         local_db_path = os.path.join(DATABASES_PATH, local_db_name)
 
         # Check if the local database already exists before attempting to download
-        if not os.path.exists(local_db_path):
+        if local_db_name not in db_dict:
             command = [
                 "mmseqs",
                 "databases",
@@ -56,6 +81,7 @@ class MMSeqs:
             ]
             subprocess.run(command, check=True)
             volumes.mmseqs_databases.commit()
+            db_dict[db_name] = local_db_name
         else:
             print(
                 f"Database {local_db_name} already exists at {local_db_path}.")
@@ -80,10 +106,7 @@ class MMSeqs:
         database_files = [f for f in os.listdir(
             DATABASES_PATH) if f.endswith('.source')]
         databases = set()
-        if not database_files:
-            print("No databases have been downloaded yet.")
-        else:
-            print("Downloaded databases:")
+        if database_files:
             for db_file in database_files:
                 db_name = db_file.replace('.source', '')
                 databases.add(db_name)
@@ -103,7 +126,10 @@ class MMSeqs:
             db_name (str): The name of the database to search against.
         """
         import tempfile
-        db_path = os.path.join(DATABASES_PATH, db_name)
+
+        # Use the get_local_db_path method to get the database path
+        db_path = self.get_local_db_path(db_name)
+
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmpfile:
             tmpfile.write(f">{tmpfile.name}\n{sequence}\n")
             tmpfile_path = tmpfile.name
@@ -132,7 +158,7 @@ class MMSeqs:
 
         return df
 
-    @method()
+    @ method()
     def align(self, sequences):
         """
         Perform local alignment of a query sequence against multiple target sequences using MMSeqs2.
@@ -187,7 +213,7 @@ class MMSeqs:
 
         return results
 
-    @method()
+    @ method()
     def cluster_sequences(self, sequences, ids: list, sequence_identity_threshold: float):
         """
         Clusters sequences using the MMSeqs2 easy-cluster method with a specified sequence identity threshold.
@@ -231,3 +257,177 @@ class MMSeqs:
         # Read cluster results and return as a DataFrame
         import pandas as pd
         return pd.read_csv(cluster_result_cluster_tsv_path, sep='\t', header=None, names=['cluster_id', 'sequence_id'])
+
+    @ method()
+    def create_hmm_profiles(self, msas, match_mode=0, match_ratio=0.5):
+        """
+        Create HMM profiles from a list of multiple sequence alignments (MSAs) using MMSeqs2.
+
+        Args:
+            msas (list of str): List of MSAs in FASTA, A3M, or CA3M format.
+            match_mode (int, optional): Profile column assignment mode. Default is 0.
+            match_ratio (float, optional): Gap fraction threshold for profile column assignment. Default is 0.5.
+
+        Returns:
+            list: A list of IDs corresponding to the created HMM profiles.
+        """
+        import tempfile
+        import subprocess
+        import os
+        import uuid
+
+        profile_ids = []
+
+        for i, msa in enumerate(msas):
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.msa') as msa_file:
+                msa_file.write(msa)
+                msa_path = msa_file.name
+
+            msa_db_path = msa_path + "_db"
+            profile_id = str(uuid.uuid4())
+            final_hmm_profile_path = os.path.join(DATABASES_PATH, profile_id)
+
+            # Convert MSA to MMSeqs2 database
+            subprocess.run([
+                "mmseqs",
+                "convertmsa",
+                msa_path,
+                msa_db_path
+            ], check=True)
+
+            # Create HMM profile from MSA database
+            subprocess.run([
+                "mmseqs",
+                "msa2profile",
+                msa_db_path,
+                final_hmm_profile_path,
+                "--match-mode",
+                str(match_mode),
+                "--match-ratio",
+                str(match_ratio)
+            ], check=True)
+
+            profile_ids.append(profile_id)
+
+        return profile_ids
+
+    @ method()
+    def cluster_and_search_db(self, sequences, target_db_name, cluster_mode=2, min_seq_id=0.9):
+        """
+        Cluster a set of sequences, build a sub-database of the representative sequences,
+        and use that to search sequences in a specified database using the profiles of the representative sequences.
+
+        Args:
+            sequences (list of str): List of sequences to be clustered.
+            target_db_name (str): Name of the target database to search against. Example: 'UniProtKB/Swiss-Prot'.
+            cluster_mode (int, optional): Clustering mode for MMSeqs2. Default is 2.
+            min_seq_id (float, optional): Minimum sequence identity for clustering. Default is 0.9.
+
+        Returns:
+            list: A list of search results.
+        """
+        import tempfile
+        import subprocess
+        import uuid
+
+        target_db_path = self.get_local_db_path(target_db_name)
+
+        # Create temporary files for input sequences
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as seq_file:
+            for seq in sequences:
+                seq_file.write(f">{uuid.uuid4()}\n{seq}\n")
+            seq_file_path = seq_file.name
+
+        # Define paths for intermediate and final outputs
+        seq_db_path = seq_file_path + "_db"
+        cluster_db_path = seq_db_path + "_cluster"
+        rep_seq_db_path = seq_db_path + "_repseq"
+        rep_seq_db_h_path = seq_db_path + "_repseq_h"
+        profile_db_path = rep_seq_db_path + "_profile"
+        result_db_path = profile_db_path + "_result"
+
+        # Convert sequences to MMSeqs2 database
+        subprocess.run([
+            "mmseqs",
+            "createdb",
+            seq_file_path,
+            seq_db_path
+        ], check=True)
+
+        # Cluster sequences
+        subprocess.run([
+            "mmseqs",
+            "cluster",
+            seq_db_path,
+            cluster_db_path,
+            tmp_dir,
+            "--min-seq-id",
+            str(min_seq_id),
+            "--cluster-mode",
+            str(cluster_mode)
+        ], check=True)
+
+        # Create representative sequence databases
+        subprocess.run([
+            "mmseqs",
+            "createsubdb",
+            cluster_db_path,
+            seq_db_path,
+            rep_seq_db_path
+        ], check=True)
+
+        subprocess.run([
+            "mmseqs",
+            "createsubdb",
+            cluster_db_path,
+            seq_db_path,
+            rep_seq_db_h_path
+        ], check=True)
+
+        # Create profiles from representative sequences
+        subprocess.run([
+            "mmseqs",
+            "result2profile",
+            rep_seq_db_path,
+            seq_db_path,
+            cluster_db_path,
+            profile_db_path
+        ], check=True)
+
+        # Search target database using representative profiles
+        subprocess.run([
+            "mmseqs",
+            "search",
+            profile_db_path,
+            target_db_path,
+            result_db_path,
+            tmp_dir
+        ], check=True)
+
+        import pandas as pd
+
+        # Convert search results to readable format
+        result_tsv_path = result_db_path + ".tsv"
+        subprocess.run([
+            "mmseqs",
+            "convertalis",
+            profile_db_path,
+            target_db_path,
+            result_db_path,
+            result_tsv_path
+        ], check=True)
+
+        # Define the column headers
+        columns = [
+            "query", "target", "pident", "alnlen", "mismatch", "gapopen",
+            "qstart", "qend", "tstart", "tend", "evalue", "bits"
+        ]
+
+        # Read the results into a DataFrame with headers and return
+        df = pd.read_csv(result_tsv_path, sep='\t', header=None, names=columns)
+        return df
+
+
+@ app.function(image=images.mmseqs, volumes={DATABASES_PATH: volumes.mmseqs_databases})
+def main():
+    pass

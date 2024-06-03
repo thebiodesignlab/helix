@@ -10,3 +10,12 @@ base = (
         "transformers",
         "pandas")
 )
+
+mmseqs = Image.micromamba().apt_install("wget", "git", "tar").micromamba_install(
+    "mmseqs2",
+    "foldseek",
+    channels=[
+        "bioconda",
+        "conda-forge"
+    ],
+).pip_install("pandas", "numpy", "biopython")
