@@ -145,8 +145,11 @@ class MLMScorer:
             mutation[1:-1]) - offset_idx, mutation[-1]
         # assert self.sequence[idx] == wt, "The listed wildtype does not match the provided sequence"
         if "saprot" in self.model_name.lower():
+            assert self.tokenizer.tokenize(self.sequence)[
+                idx][0] == wt, "The listed wildtype does not match the provided sequence"
             return compute_saprot_score(log_probs, wt, idx, mt, self.vocab)
         else:
+            assert self.sequence[idx] == wt, "The listed wildtype does not match the provided sequence"
             return compute_score(log_probs, wt, idx, mt, self.vocab)
 
 
