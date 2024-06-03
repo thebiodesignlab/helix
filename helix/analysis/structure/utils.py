@@ -1,4 +1,4 @@
-from Bio.PDB import NeighborSearch, PDBParser
+from Bio.PDB import NeighborSearch, PDBParser, PDBIO
 import os
 from io import StringIO
 
@@ -114,6 +114,14 @@ def fetch_pdb_structure(pdb_id: str):
     structure = parser.get_structure(pdb_id, pdb_io)
 
     return structure
+
+
+def pdb_to_string(structure):
+    io = PDBIO()
+    io.set_structure(structure)
+    output = StringIO()
+    io.save(output)
+    return output.getvalue()
 
 # Example usage:
 # structure = parse_pdb_file("example.pdb")
