@@ -4,7 +4,6 @@ from helix.core import app, images
 import pandas as pd
 import os
 import tempfile
-from helix.analysis.structure.utils import fetch_pdb_structure, pdb_to_string
 
 
 AAs = [
@@ -125,7 +124,7 @@ def extract_plddt(pdb_path: str):
 
 @app.function(image=images.base, timeout=4000)
 def dms(sequence, metrics=["wildtype_marginal", "masked_marginal"], model_names=["facebook/esm1b_t33_650M_UR50S",  "facebook/esm2_t33_650M_UR50D", "facebook/esm2_t36_3B_UR50D"], pdb_id=None, chain_id=None):
-
+    from helix.analysis.structure.utils import fetch_pdb_structure, pdb_to_string
     offset_idx = 1
     mutation_col = "mutant"
     data = [
