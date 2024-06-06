@@ -119,7 +119,7 @@ class MLMScorer:
         return token_probs
 
     @method()
-    def score_mutation(self, mutation: str, metric: str, offset_idx: int = 1):
+    def score_mutations(self, mutations: list[str], metric: str, offset_idx: int = 1):
         """
         Calculate the score of a mutation based on the specified metric.
 
@@ -130,30 +130,35 @@ class MLMScorer:
         Returns:
             float: The score of the mutation according to the specified metric.
         """
+        scores = []
+        for mutation in mutations:
+            if metric not in ['wildtype_marginal', 'masked_marginal', 'pppl']:
+                raise ValueError(
+                    "The metric must be one of 'wildtype_marginal', 'masked_marginal', or 'pppl'")
 
-        if metric not in ['wildtype_marginal', 'masked_marginal', 'pppl']:
-            raise ValueError(
-                "The metric must be one of 'wildtype_marginal', 'masked_marginal', or 'pppl'")
+            if metric == 'wildtype_marginal':
+                log_probs = self.compute_token_log_probs()
 
-        if metric == 'wildtype_marginal':
-            log_probs = self.compute_token_log_probs()
+            elif metric == 'masked_marginal':
+                log_probs = self.compute_masked_token_log_probs()
 
-        elif metric == 'masked_marginal':
-            log_probs = self.compute_masked_token_log_probs()
+            wt, idx, mt = mutation[0], int(
+                mutation[1:-1]) - offset_idx, mutation[-1]
+            # assert self.sequence[idx] == wt, "The listed wildtype does not match the provided sequence"
+            if "saprot" in self.model_name.lower():
+                tokenized_sequence = self.tokenizer.tokenize(self.sequence)
+                assert tokenized_sequence[idx][
+                    0] == wt, f'The listed wildtype {wt} does not match the provided sequence {tokenized_sequence[idx][0]} at position {idx}'
+                scores.append(compute_saprot_score(
+                    log_probs, wt, idx, mt, self.vocab))
+            else:
+                assert self.sequence[idx] == wt, "The listed wildtype does not match the provided sequence"
+                scores.append(compute_score(
+                    log_probs, wt, idx, mt, self.vocab))
+        return scores
 
-        wt, idx, mt = mutation[0], int(
-            mutation[1:-1]) - offset_idx, mutation[-1]
-        # assert self.sequence[idx] == wt, "The listed wildtype does not match the provided sequence"
-        if "saprot" in self.model_name.lower():
-            assert self.tokenizer.tokenize(self.sequence)[
-                idx][0] == wt, "The listed wildtype does not match the provided sequence"
-            return compute_saprot_score(log_probs, wt, idx, mt, self.vocab)
-        else:
-            assert self.sequence[idx] == wt, "The listed wildtype does not match the provided sequence"
-            return compute_score(log_probs, wt, idx, mt, self.vocab)
 
-
-@app.function(gpu="any", image=images.base, timeout=4000)
+@app.function(gpu="any", image=images.base, timeout=5000)
 def score_mutations(model_name: str, sequence: str, mutations: list[str], metric: str, offset_idx: int = 1) -> list[float]:
     """
     Calculate the score of mutations based on the specified metric.
@@ -173,6 +178,5 @@ def score_mutations(model_name: str, sequence: str, mutations: list[str], metric
             "The metric must be one of 'wildtype_marginal', 'masked_marginal', or 'pppl'")
 
     scorer = MLMScorer(model_name=model_name, sequence=sequence)
-    scores = [scorer.score_mutation.remote(mutation, metric, offset_idx)
-              for mutation in mutations]
+    scores = scorer.score_mutations.remote(mutations, metric, offset_idx)
     return scores
