@@ -134,12 +134,12 @@ def dms(sequence, metrics=["wildtype_marginal", "masked_marginal"], model_names=
     df = pd.DataFrame(data, columns=[mutation_col])
     [sequence[:pos] + mt + sequence[pos+1:]
      for pos, wt, mt in deep_mutational_scan(sequence)]
+    sa_sequence = None
     if pdb_id:
         structure = fetch_pdb_structure(pdb_id)
         pdb_string = pdb_to_string(structure)
         seq_dict = get_struc_seq.remote(pdb_string, chains=chain_id)
         sa_sequence = seq_dict[chain_id][2]
-    print(sa_sequence)
     for metric in metrics:
         results = score_mutations.starmap(
             [(model_name, sa_sequence if "saprot" in model_name.lower() else sequence, df[mutation_col], metric)
