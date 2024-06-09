@@ -1,4 +1,3 @@
-from Bio.PDB import NeighborSearch, PDBParser, PDBIO
 import os
 from io import StringIO
 
@@ -21,6 +20,7 @@ def get_residues_within_distance(structure, target_residue, distance):
     list of Bio.PDB.Residue.Residue
         A list of residues within the given distance from the target residue.
     """
+    from Bio.PDB import NeighborSearch
     # Extract all atoms from the structure
     atoms = [atom for atom in structure.get_atoms()]
 
@@ -78,6 +78,7 @@ def parse_pdb_file(pdb_input):
     Bio.PDB.Structure.Structure
         The parsed structure object.
     """
+    from Bio.PDB import PDBParser
     parser = PDBParser()
 
     if os.path.isfile(pdb_input):
@@ -89,34 +90,32 @@ def parse_pdb_file(pdb_input):
     return structure
 
 
-def fetch_pdb_structure(pdb_id: str):
-    import requests
+def fetch_pdb_structure(pdb_id: str) -> str:
+    import urllib.request
     """
-    Fetch a PDB structure by its ID and return as a Biopython Structure object.
+    Fetch a PDB structure by its ID and return its content as a string.
 
     Parameters:
     - pdb_id (str): The PDB ID to fetch.
 
     Returns:
-    - Bio.PDB.Structure.Structure: The fetched structure as a Biopython object.
+    - str: The fetched PDB content as a string.
     """
     url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
-    response = requests.get(url)
+    try:
+        with urllib.request.urlopen(url) as response:
+            if response.status != 200:
+                raise Exception(
+                    f"Failed to download PDB {pdb_id}. HTTP Status Code: {response.status}")
+            pdb_content = response.read().decode('utf-8')
+    except urllib.error.URLError as e:
+        raise Exception(f"Failed to download PDB {pdb_id}. Error: {e.reason}")
 
-    if response.status_code != 200:
-        raise Exception(
-            f"Failed to download PDB {pdb_id}. HTTP Status Code: {response.status_code}")
-
-    pdb_content = response.text
-    pdb_io = StringIO(pdb_content)
-
-    parser = PDBParser(QUIET=True)  # QUIET=True suppresses warnings
-    structure = parser.get_structure(pdb_id, pdb_io)
-
-    return structure
+    return pdb_content
 
 
 def pdb_to_string(structure):
+    from Bio.PDB import PDBIO
     io = PDBIO()
     io.set_structure(structure)
     output = StringIO()
