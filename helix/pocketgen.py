@@ -1,5 +1,9 @@
+from helix.analysis.structure.utils import fetch_pdb_structure
+import shutil
+from typing import Optional
 from modal import Image
 from helix.core import app
+from helix.utils import smiles_to_sdf
 
 pocketgen_image = (
     Image.micromamba()
@@ -23,20 +27,65 @@ pocketgen_image = (
 
 
 @app.function(image=pocketgen_image, gpu='any', timeout=3600)
-def run():
+def predict_docking(protein_pdb_id: Optional[str] = None, pdb_content: Optional[str] = None, ligand_sdf_content: Optional[str] = None, ligand_smile: Optional[str] = None):
     import subprocess
+    import tempfile
+    import os
+    import uuid
 
-    def generate_new():
-        try:
-            result = subprocess.run(
-                ['python', 'generate_new.py'], check=True, capture_output=True, text=True)
-            print("Output:", result.stdout)
-        except subprocess.CalledProcessError as e:
-            print("An error occurred while running generate_new.py:", e.stderr)
+    if not (protein_pdb_id or pdb_content):
+        raise ValueError(
+            "Either protein_pdb_id or pdb_content must be provided.")
+    if not (ligand_sdf_content or ligand_smile):
+        raise ValueError(
+            "Either ligand_sdf_content or ligand_smile must be provided.")
 
-    generate_new()
+    temp_dir = tempfile.mkdtemp()
 
+    try:
+        # Generate a random ID
+        random_id = str(uuid.uuid4())
 
-@app.local_entrypoint()
-def main():
-    run.remote()
+        if protein_pdb_id:
+            # Fetch PDB content using the provided PDB ID
+            pdb_content = fetch_pdb_structure(protein_pdb_id)
+
+        pdb_file_path = os.path.join(temp_dir, f"{random_id}.pdb")
+        with open(pdb_file_path, 'w') as pdb_file:
+            pdb_file.write(pdb_content)
+
+        ligand_file_path = os.path.join(temp_dir, f"{random_id}_ligand.sdf")
+        if ligand_sdf_content:
+            with open(ligand_file_path, 'w') as ligand_file:
+                ligand_file.write(ligand_sdf_content)
+        else:
+            try:
+                ligand_sdf_content = smiles_to_sdf(ligand_smile)
+                with open(ligand_file_path, 'w') as ligand_file:
+                    ligand_file.write(ligand_sdf_content)
+            except ValueError as e:
+                raise ValueError(f"Failed to convert SMILES to SDF: {e}")
+
+        def generate_new():
+            try:
+                result = subprocess.run(
+                    ['python', 'generate_new.py', '--target', temp_dir], check=True, capture_output=True, text=True)
+                print("Output:", result.stdout)
+            except subprocess.CalledProcessError as e:
+                print("An error occurred while running generate_new.py:", e.stderr)
+
+        generate_new()
+
+        pocket_file_path = os.path.join(temp_dir, f"{random_id}_pocket.pdb")
+        if not os.path.exists(pocket_file_path):
+            raise FileNotFoundError(
+                f"Expected output file {pocket_file_path} not found.")
+
+        with open(pocket_file_path, 'r') as pocket_file:
+            pocket_content = pocket_file.read()
+
+        return pocket_content
+
+    finally:
+        # Clean up the temporary directory
+        shutil.rmtree(temp_dir)
