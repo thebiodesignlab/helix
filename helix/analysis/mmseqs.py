@@ -20,7 +20,6 @@ db_dict = Dict.from_name("mmseqs-db-dict", create_if_missing=True)
 class MMSeqs:
 
     def __init__(self):
-        self.local_databases = self._get_local_databases()
 
     def generate_unique_db_name(self):
         """
@@ -86,7 +85,8 @@ class MMSeqs:
             print(
                 f"Database {local_db_name} already exists at {local_db_path}.")
 
-    def _get_local_databases(self):
+    @method()
+    def get_downloaded_databases(self):
         """
         List all databases that have been downloaded and are available in the local storage.
         This method now simply lists the names of the databases without detailing the associated files.
@@ -109,7 +109,11 @@ class MMSeqs:
         if database_files:
             for db_file in database_files:
                 db_name = db_file.replace('.source', '')
-                databases.add(db_name)
+                if db_name in db_dict:
+                    databases.add(db_name)
+                else:
+                    print(
+                        f"Local database {db_name} is not in the dictionary.")
 
             for db in databases:
                 print(db)
