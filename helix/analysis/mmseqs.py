@@ -90,7 +90,7 @@ class MMSeqs:
         This method now simply lists the names of the databases without detailing the associated files.
 
         Returns:
-            list: A list of database names available in the local storage.
+            dict: A dictionary of database names and their corresponding local names available in the local storage.
         """
         import os
 
@@ -98,25 +98,27 @@ class MMSeqs:
         if not os.path.exists(DATABASES_PATH):
             print(
                 f"No databases found. Directory {DATABASES_PATH} does not exist.")
-            return []
+            return {}
 
         # List only .source files in the database path
         database_files = [f for f in os.listdir(
             DATABASES_PATH) if f.endswith('.source')]
-        databases = set()
+        databases = {}
         if database_files:
             for db_file in database_files:
-                db_name = db_file.replace('.source', '')
-                if db_name in db_dict:
-                    databases.add(db_name)
+                local_db_name = db_file.replace('.source', '')
+                for db_name, value in db_dict.items():
+                    if value == local_db_name:
+                        databases[db_name] = local_db_name
+                        break
                 else:
                     print(
-                        f"Local database {db_name} is not in the dictionary.")
+                        f"Local database {local_db_name} is not in the dictionary.")
 
-            for db in databases:
-                print(db)
+            for db_name, local_db_name in databases.items():
+                print(f"{db_name}: {local_db_name}")
 
-        return list(databases)
+        return databases
 
     @method()
     def search_sequence(self, sequence, db_name):
