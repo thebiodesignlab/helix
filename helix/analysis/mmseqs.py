@@ -19,8 +19,6 @@ db_dict = Dict.from_name("mmseqs-db-dict", create_if_missing=True)
 )
 class MMSeqs:
 
-    def __init__(self):
-
     def generate_unique_db_name(self):
         """
         Generate a unique database name for storing downloaded databases.
