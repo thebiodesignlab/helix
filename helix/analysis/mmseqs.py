@@ -14,8 +14,10 @@ db_dict = Dict.from_name("mmseqs-db-dict", create_if_missing=True)
     image=images.mmseqs,
     volumes={DATABASES_PATH: volumes.mmseqs_databases},
     timeout=3600*10,
-    cpu=10.0,
-    memory=250.0,
+    cpu=6.0,
+    ephemeral_disk=2000 * 1000,
+    memory=32768,
+
 )
 class MMSeqs:
 
