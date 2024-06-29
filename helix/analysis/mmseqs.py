@@ -412,7 +412,7 @@ class MMSeqs:
 
         import pandas as pd
 
-        # Convert search results to readable format
+        # Convert search results to readable format with taxonomy information
         result_tsv_path = result_db_path + ".tsv"
         subprocess.run([
             "mmseqs",
@@ -420,17 +420,20 @@ class MMSeqs:
             profile_db_path,
             target_db_path,
             result_db_path,
-            result_tsv_path
+            result_tsv_path,
+            "--format-mode", "4",
+            "--format-output", "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,taxid,taxname,taxlineage"
         ], check=True)
 
-        # Define the column headers
+        # Define the column headers including taxonomy information
         columns = [
             "query", "target", "pident", "alnlen", "mismatch", "gapopen",
-            "qstart", "qend", "tstart", "tend", "evalue", "bits"
+            "qstart", "qend", "tstart", "tend", "evalue", "bits",
+            "taxid", "taxname", "taxlineage"
         ]
 
         # Read the results into a DataFrame with headers and return
-        df = pd.read_csv(result_tsv_path, sep='\t', header=None, names=columns)
+        df = pd.read_csv(result_tsv_path, sep='\t', header=0, names=columns)
         return df
 
 
