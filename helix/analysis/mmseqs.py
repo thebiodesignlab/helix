@@ -422,14 +422,14 @@ class MMSeqs:
             result_db_path,
             result_tsv_path,
             "--format-mode", "4",
-            "--format-output", "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,taxid,taxname,taxlineage,cigar,qseq,tseq,qcov,tcov"
+            "--format-output", "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,taxid,taxname,taxlineage,qseq,tseq,qcov,tcov"
         ], check=True)
 
         # Define the column headers including taxonomy information and additional columns
         columns = [
             "query", "target", "pident", "alnlen", "mismatch", "gapopen",
             "qstart", "qend", "tstart", "tend", "evalue", "bits",
-            "taxid", "taxname", "taxlineage", "cigar", "qseq", "tseq", "qcov", "tcov"
+            "taxid", "taxname", "taxlineage", "qseq", "tseq", "qcov", "tcov"
         ]
 
         # Read the results into a DataFrame with headers and return
