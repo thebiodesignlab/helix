@@ -1,13 +1,24 @@
-from modal import method, Dict
+from modal import method
 from helix.core import app, volumes, images
 import subprocess
 from pathlib import Path
+import json
 
 tmp_dir = "/tmp/mmseqs"
 DATABASES_PATH = "/mnt/databases"
+DB_DICT_PATH = Path(DATABASES_PATH) / "mmseqs_db_dict.json"
 
-# Create a persisted dict to keep track of databases
-db_dict = Dict.from_name("mmseqs-db-dict", create_if_missing=True)
+
+def load_db_dict():
+    if DB_DICT_PATH.exists():
+        with open(DB_DICT_PATH, 'r') as f:
+            return {k.lower(): v for k, v in json.load(f).items()}
+    return {}
+
+
+def save_db_dict(db_dict):
+    with open(DB_DICT_PATH, 'w') as f:
+        json.dump(db_dict, f)
 
 
 @app.cls(
@@ -15,11 +26,12 @@ db_dict = Dict.from_name("mmseqs-db-dict", create_if_missing=True)
     volumes={DATABASES_PATH: volumes.mmseqs_databases},
     timeout=3600*10,
     cpu=10.0,
-    # ephemeral_disk=2000 * 1000,
     memory=32768,
-
 )
 class MMSeqs:
+
+    def __init__(self):
+        self.db_dict = load_db_dict()
 
     def generate_unique_db_name(self):
         """
@@ -44,14 +56,16 @@ class MMSeqs:
         Raises:
             KeyError: If the database does not exist in the dictionary.
         """
-        if db_name not in db_dict:
+        db_name_lower = db_name.lower()
+        if db_name_lower not in self.db_dict:
             raise KeyError(
                 f"Database '{db_name}' does not exist. Please download it using the 'download_db.remote('{db_name}')' method.")
-        elif not (Path(DATABASES_PATH) / db_dict[db_name]):
-            db_dict.pop(db_name)
+        elif not (Path(DATABASES_PATH) / self.db_dict[db_name_lower]):
+            self.db_dict.pop(db_name_lower)
+            save_db_dict(self.db_dict)
             raise FileNotFoundError(
-                f"Database '{db_name}' not found at path {DATABASES_PATH}/{db_dict[db_name]}. Try downloading it again.")
-        return Path(DATABASES_PATH) / db_dict[db_name]
+                f"Database '{db_name}' not found at path {DATABASES_PATH}/{self.db_dict[db_name_lower]}. Try downloading it again.")
+        return Path(DATABASES_PATH) / self.db_dict[db_name_lower]
 
     @method()
     def download_db(self, db_name):
@@ -63,14 +77,14 @@ class MMSeqs:
 
         This method assumes that the MMSeqs2 'databases' command is available and configured properly.
         """
-        import subprocess
         import os
 
+        db_name_lower = db_name.lower()
         local_db_name = self.generate_unique_db_name()
         local_db_path = os.path.join(DATABASES_PATH, local_db_name)
 
         # Check if the local database already exists before attempting to download
-        if local_db_name not in db_dict:
+        if db_name_lower not in self.db_dict:
             command = [
                 "mmseqs",
                 "databases",
@@ -80,10 +94,11 @@ class MMSeqs:
             ]
             subprocess.run(command, check=True)
             volumes.mmseqs_databases.commit()
-            db_dict[db_name] = local_db_name
+            self.db_dict[db_name_lower] = local_db_name
+            save_db_dict(self.db_dict)
         else:
             print(
-                f"Database {local_db_name} already exists at {local_db_path}.")
+                f"Database {db_name} already exists at {local_db_path}.")
 
     @method()
     def get_downloaded_databases(self):
@@ -94,31 +109,17 @@ class MMSeqs:
         Returns:
             dict: A dictionary of database names and their corresponding local names available in the local storage.
         """
-        import os
-
-        # Ensure the directory exists
-        if not os.path.exists(DATABASES_PATH):
-            print(
-                f"No databases found. Directory {DATABASES_PATH} does not exist.")
-            return {}
-
-        # List only .source files in the database path
-        database_files = [f for f in os.listdir(
-            DATABASES_PATH) if f.endswith('.source')]
         databases = {}
-        if database_files:
-            for db_file in database_files:
-                local_db_name = db_file.replace('.source', '')
-                for db_name, value in db_dict.items():
-                    if value == local_db_name:
-                        databases[db_name] = local_db_name
-                        break
-                else:
-                    print(
-                        f"Local database {local_db_name} is not in the dictionary.")
-
-            for db_name, local_db_name in databases.items():
+        for db_name, local_db_name in self.db_dict.items():
+            if (Path(DATABASES_PATH) / f"{local_db_name}.source").exists():
+                databases[db_name] = local_db_name
                 print(f"{db_name}: {local_db_name}")
+            else:
+                print(
+                    f"Warning: {db_name} is in db_dict but .source file not found in {DATABASES_PATH}")
+
+        if not databases:
+            print(f"No databases found in {DATABASES_PATH}")
 
         return databases
 
