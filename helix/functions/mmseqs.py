@@ -436,8 +436,3 @@ class MMSeqs:
         # Read the results into a DataFrame with headers and return
         df = pd.read_csv(result_tsv_path, sep='\t', header=0, names=columns)
         return df
-
-
-@ app.function(image=images.mmseqs, volumes={DATABASES_PATH: volumes.mmseqs_databases})
-def main():
-    pass

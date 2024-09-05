@@ -1,5 +1,4 @@
 import hashlib
-from pprint import pprint
 from modal import Image, method
 import pandas as pd
 from helix.core import app
@@ -52,7 +51,7 @@ class EvoProtGrad:
 @app.local_entrypoint()
 def get_evoprotgrad_variants(sequence: str, output_csv_file: str = None, output_fasta_file: str = None, experts: str = "esm", n_steps: int = 100, num_chains: int = 20, max_mutations: int = -1, random_seed: int = None, batch_size: int = 9):
     from .evoprotgrad import EvoProtGrad
-    from helix.utils import dataframe_to_fasta, count_mutations
+    from helix.utils.sequence import dataframe_to_fasta
 
     experts = experts.split(",")
     evoprotgrad = EvoProtGrad(experts=experts)
@@ -94,9 +93,6 @@ def get_evoprotgrad_variants(sequence: str, output_csv_file: str = None, output_
     # Convert results to a DataFrame
     df_results = pd.DataFrame(results)
 
-    mutations_report = count_mutations(
-        sequence, list(df_results['variant'].values))
-    pprint(mutations_report)
     # hash the sequence to get an ID
     df_results['id'] = df_results['variant'].apply(
         lambda x: hashlib.sha1(x.encode()).hexdigest())

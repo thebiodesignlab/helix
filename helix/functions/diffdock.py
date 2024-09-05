@@ -7,7 +7,7 @@ import tempfile
 import logging
 import zipfile
 from modal import Image, gpu, Volume
-from helix.analysis.structure.utils import fetch_pdb_structure
+from helix.utils.structure import fetch_pdb_structure
 from helix.core import app
 
 TEMP_DIR = "/mnt/tmp/diffdock"
@@ -50,7 +50,7 @@ cache_volume = Volume.from_name("diffdock-cache", create_if_missing=True)
 
 image = Image.from_registry("rbgcsail/diffdock", add_python="3.9").run_commands(
     "micromamba run -n diffdock python /home/appuser/DiffDock/utils/precompute_series.py"
-).pip_install("pyyaml")
+).pip_install("pyyaml", "biopython")
 
 
 def kwargs_to_cli_args(**kwargs) -> List[str]:

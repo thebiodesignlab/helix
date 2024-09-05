@@ -1,0 +1,14 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+data/
+*.csv
+*.fasta
+*.fastq
+*.gz
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.newick
+__pycache__/
+.ruff_cache/

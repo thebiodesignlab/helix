@@ -1,4 +1,5 @@
 
+import os
 from modal import Image
 from helix.core import app
 
@@ -7,7 +8,7 @@ longread_umi_image = (
     Image
     .micromamba()
     .apt_install("git", "wget", "make", "g++", "bsdmainutils", "gawk")
-    .copy_local_file(__file__.replace("main.py", "install_conda.sh"), "install_conda.sh")
+    .copy_local_file(os.path.join(os.path.dirname(__file__), "install_conda.sh"), "install_conda.sh")
     .run_commands(
         "bash ./install_conda.sh"
     )

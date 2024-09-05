@@ -121,8 +121,3 @@ def pdb_to_string(structure):
     output = StringIO()
     io.save(output)
     return output.getvalue()
-
-# Example usage:
-# structure = parse_pdb_file("example.pdb")
-# target_residue = get_residue_by_position(structure, 'A', 234)  # Chain A, Residue 234
-# residues_within_5A = get_residues_within_distance(structure, target_residue, 5.0)

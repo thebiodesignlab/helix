@@ -1,4 +1,4 @@
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 
 
 def create_batches(sequences, batch_size: int = 32):
@@ -14,24 +14,6 @@ def create_batches(sequences, batch_size: int = 32):
             batches.append(sequences[i:i + batch_size])
 
     return batches
-
-
-def count_mutations(sequence, variants):
-    all_mutations = []
-    for variant in variants:
-        # Positions are 1-indexed
-        mutations = [f"{wt}{pos+1}{mut}" for pos,
-                     (wt, mut) in enumerate(zip(sequence, variant)) if wt != mut]
-        all_mutations.extend(mutations)
-
-    mutation_counts = {}
-    for mutation in all_mutations:
-        mutation_counts[mutation] = mutation_counts.get(mutation, 0) + 1
-
-    # Sort by count in descending order and return an OrderedDict
-    sorted_mutation_counts = OrderedDict(
-        sorted(mutation_counts.items(), key=lambda item: item[1], reverse=True))
-    return sorted_mutation_counts
 
 
 def dataframe_to_fasta(df, id_col, seq_col, metadata_cols=None):
@@ -55,8 +37,3 @@ def dataframe_to_fasta(df, id_col, seq_col, metadata_cols=None):
         fasta_str += f">{row[id_col]} {metadata_str}\n"
         fasta_str += f"{row[seq_col]}\n"
     return fasta_str
-
-# Example usage:
-# Assuming `df` is your DataFrame, 'id' is the column with identifiers,
-# 'sequence' is the column with sequence data, and 'metadata_cols' is a list of columns to include as metadata.
-# dataframe_to_fasta(df, 'id', 'sequence', 'output.fasta', metadata_cols=['gene', 'organism'])

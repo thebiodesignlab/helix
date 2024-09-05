@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Literal
 from loguru import logger
 import numpy as np
 from helix.core import app, images, volumes
-from helix.filecache import file_cache
+from helix.utils.filecache import file_cache
 from modal import gpu
 
 EmbeddingStrategy = Literal["cls", "mean", "max"]
