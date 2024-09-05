@@ -318,7 +318,7 @@ class MMSeqs:
 
         return profile_ids
 
-    @ method()
+    @method()
     def cluster_and_search_db(self, sequences, target_db_name, cluster_mode=2, min_seq_id=0.9):
         """
         Cluster a set of sequences, build a sub-database of the representative sequences,

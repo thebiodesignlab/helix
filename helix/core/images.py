@@ -8,6 +8,7 @@ base = (
         "biopython",
         "matplotlib",
         "transformers",
+        "loguru",
         "pandas")
 )
 

@@ -1,13 +1,53 @@
 from typing import List, Dict, Any, Literal
-
 from loguru import logger
+import numpy as np
 from helix.core import app, images, volumes
+from helix.filecache import file_cache
+from modal import gpu
 
 EmbeddingStrategy = Literal["cls", "mean", "max"]
 MODEL_DIR = "/mnt/models"
+CACHE_DIR = "/mnt/cache"
 
 
-@app.function(image=images.base, gpu="A100", volumes={MODEL_DIR: volumes.model_weights}, timeout=10000)
+@app.function(image=images.base, gpu=gpu.A100(size='40GB'), volumes={MODEL_DIR: volumes.model_weights, CACHE_DIR: volumes.cache}, timeout=4000)
+@file_cache(verbose=True, cache_dir=CACHE_DIR)
+def compute_batch_embeddings(
+    batch: List[str],
+    model_name: str,
+    embedding_strategy: EmbeddingStrategy,
+    max_length: int
+) -> np.ndarray:
+    import torch
+    from transformers import AutoTokenizer, AutoModel
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=MODEL_DIR)
+    model = AutoModel.from_pretrained(model_name, cache_dir=MODEL_DIR)
+    model.eval()
+
+    # Input validation
+    if not all(isinstance(seq, str) for seq in batch):
+        raise ValueError("All sequences in the batch must be strings")
+
+    inputs = tokenizer(batch, return_tensors="pt",
+                       padding=True, truncation=True, max_length=max_length)
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    if embedding_strategy == "cls":
+        embeddings = outputs.last_hidden_state[:, 0, :]
+    elif embedding_strategy == "mean":
+        embeddings = outputs.last_hidden_state.mean(dim=1)
+    elif embedding_strategy == "max":
+        embeddings = outputs.last_hidden_state.max(dim=1).values
+    else:
+        raise ValueError(f"Invalid embedding strategy: {embedding_strategy}")
+
+    return embeddings.cpu().numpy()
+
+
+@app.function(image=images.base, gpu="any", volumes={MODEL_DIR: volumes.model_weights, CACHE_DIR: volumes.cache}, timeout=10000)
 def get_protein_embeddings(
     sequences: List[str],
     model_name: str = "facebook/esm2_t33_650M_UR50D",
@@ -28,37 +68,18 @@ def get_protein_embeddings(
     Returns:
         Dict[str, Any]: Dictionary containing embeddings and model info.
     """
-    from transformers import AutoTokenizer, AutoModel
-    import torch
     try:
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_name, cache_dir=MODEL_DIR)
-        model = AutoModel.from_pretrained(model_name, cache_dir=MODEL_DIR)
-        model.eval()
+        # Prepare batches
+        batches = [sequences[i:i+batch_size]
+                   for i in range(0, len(sequences), batch_size)]
 
-        all_embeddings = []
+        # Process batches in parallel
+        args_list = [(batch, model_name, embedding_strategy, None)
+                     for batch in batches]
+        all_embeddings = list(compute_batch_embeddings.starmap(args_list))
 
-        for i in range(0, len(sequences), batch_size):
-            batch = sequences[i:i+batch_size]
-            inputs = tokenizer(batch, return_tensors="pt",
-                               padding=True, truncation=True, max_length=max_length)
-
-            with torch.no_grad():
-                outputs = model(**inputs)
-
-            if embedding_strategy == "cls":
-                embeddings = outputs.last_hidden_state[:, 0, :]
-            elif embedding_strategy == "mean":
-                embeddings = outputs.last_hidden_state.mean(dim=1)
-            elif embedding_strategy == "max":
-                embeddings = outputs.last_hidden_state.max(dim=1).values
-            else:
-                raise ValueError(
-                    f"Invalid embedding strategy: {embedding_strategy}")
-
-            all_embeddings.append(embeddings)
-
-        all_embeddings = torch.cat(all_embeddings, dim=0).cpu().numpy()
+        # Concatenate the results
+        all_embeddings = np.concatenate(all_embeddings, axis=0)
 
         return {
             "embeddings": all_embeddings.tolist(),

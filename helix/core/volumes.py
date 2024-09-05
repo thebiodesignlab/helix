@@ -10,3 +10,5 @@ rosetta = CloudBucketMount(
 mmseqs_databases = Volume.from_name("mmseqs-databases", create_if_missing=True)
 
 results = Volume.from_name("results", create_if_missing=True)
+
+cache = Volume.from_name("function-cache", create_if_missing=True)
