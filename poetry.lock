@@ -833,12 +833,12 @@ files = [
 
 [[package]]
 name = "modal"
-version = "0.62.197"
+version = "0.64.87"
 description = "Python client library for Modal"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "modal-0.62.197-py3-none-any.whl", hash = "sha256:a9fc8aad1000ecb65eaed420e50d4494af92353974b3d8152d752580d3ead027"},
+    {file = "modal-0.64.87-py3-none-any.whl", hash = "sha256:f43cfa33f0f5924af2aab701a13944a2825d9f3f43191ad069fcb03159214ff8"},
 ]
 
 [package.dependencies]
@@ -850,7 +850,7 @@ fastapi = "*"
 grpclib = "0.4.7"
 protobuf = ">=3.19,<4.24.0 || >4.24.0,<5.0"
 rich = ">=12.0.0"
-synchronicity = ">=0.6.6,<0.7.0"
+synchronicity = ">=0.7.5,<0.8.0"
 toml = "*"
 typer = ">=0.9"
 types-certifi = "*"
@@ -1697,12 +1697,12 @@ full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart", "pyyam
 
 [[package]]
 name = "synchronicity"
-version = "0.6.6"
+version = "0.7.5"
 description = "Export blocking and async library versions from a single async implementation"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "synchronicity-0.6.6-py3-none-any.whl", hash = "sha256:72e429b26c002e77916b3d839689a0db2c006de1742e5629e4c4eae000cae8a7"},
+    {file = "synchronicity-0.7.5-py3-none-any.whl", hash = "sha256:724f96392956620b7528e502c1473e634d3f78358df49f803cbda8620215d0f7"},
 ]
 
 [package.dependencies]
@@ -2081,4 +2081,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e51994b6c7cd39c7ec0f237d1db5245eed9b76ac7ed926ec8d5035773262de49"
+content-hash = "01ee48f682f3ba2d485e8a142dcfb8871a9fefc0c34fde369dd96e2bc7c7af1b"
