@@ -1,7 +1,7 @@
 from modal import Image
 
 base = (
-    Image.debian_slim()
+    Image.debian_slim(python_version="3.10")
     .apt_install("git")
     .pip_install(
         "torch",
